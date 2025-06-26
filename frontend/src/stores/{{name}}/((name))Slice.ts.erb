@@ -1,0 +1,280 @@
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
+import axios from 'axios'
+import {fulfilledNotify, rejectNotify, resetNotify} from "../../helpers/notifyStateHandler";
+
+interface MainState {
+    ((name)): any
+    loading: boolean
+    count: number
+    refetch: boolean;
+    rolesWidgets: any[];
+    notify: {
+        showNotification: boolean
+        textNotification: string
+        typeNotification: string
+    }
+}
+
+const initialState: MainState = {
+    ((name)): [],
+    loading: false,
+    count: 0,
+    refetch: false,
+    rolesWidgets: [],
+    notify: {
+        showNotification: false,
+        textNotification: '',
+        typeNotification: 'warn',
+    },
+}
+
+export const fetch = createAsyncThunk('((name))/fetch', async (data: any) => {
+    const { id, query } = data
+    const result = await axios.get(
+        `((name))${
+            query || (id ? `/${id}` : '')
+        }`
+    )
+    return id ? result.data : {rows: result.data.rows, count: result.data.count};
+})
+
+export const deleteItemsByIds = createAsyncThunk(
+  '((name))/deleteByIds',
+  async (data: any, { rejectWithValue }) => {
+    try {
+      await axios.post('((name))/deleteByIds', { data });
+    } catch (error) {
+      if (!error.response) {
+        throw error;
+      }
+
+      return rejectWithValue(error.response.data);
+    }
+  },
+);
+
+export const deleteItem = createAsyncThunk('((name))/delete((Name))', async (id: string, { rejectWithValue }) => {
+    try {
+        await axios.delete(`((name))/${id}`)
+    } catch (error) {
+        if (!error.response) {
+            throw error;
+        }
+
+        return rejectWithValue(error.response.data);
+    }
+})
+
+export const create = createAsyncThunk('((name))/create((Name))', async (data: any, { rejectWithValue }) => {
+    try {
+        const result = await axios.post(
+          '((name))',
+          { data }
+        )
+        return result.data
+    } catch (error) {
+        if (!error.response) {
+            throw error;
+        }
+
+        return rejectWithValue(error.response.data);
+    }
+})
+
+export const uploadCsv = createAsyncThunk(
+  '((name))/uploadCsv',
+  async (file: File, { rejectWithValue }) => {
+      try {
+          const data = new FormData();
+          data.append('file', file);
+          data.append('filename', file.name);
+
+          const result = await axios.post('((name))/bulk-import', data, {
+              headers: {
+                  'Content-Type': 'multipart/form-data',
+              },
+          });
+
+          return result.data;
+      } catch (error) {
+          if (!error.response) {
+              throw error;
+          }
+
+          return rejectWithValue(error.response.data);
+      }
+  },
+);
+
+export const update = createAsyncThunk('((name))/update((Name))', async (payload: any, { rejectWithValue }) => {
+    try {
+        const result = await axios.put(
+          `((name))/${payload.id}`,
+          { id: payload.id, data: payload.data }
+        )
+        return result.data
+    } catch (error) {
+        if (!error.response) {
+            throw error;
+        }
+
+        return rejectWithValue(error.response.data);
+    }
+})
+
+<% if '((name))' == 'roles' && @fields.any? { |field| field['@name'] == 'role_customization' } %>
+export const removeWidget = createAsyncThunk(
+  'openai/removeWidget',
+  async (payload: any) => {
+      const result = await axios.delete(`openai/roles-info/${payload.id}`, {
+          params: {
+              roleId: payload.roleId,
+              infoId: payload.widgetId,
+              key: 'widgets',
+          },
+      });
+      return result.data;
+  },
+);
+
+export const fetchWidgets = createAsyncThunk(
+  'openai/fetchWidgets',
+  async (roleId: any) => {
+      const result = await axios.get(
+        `openai/info-by-key?key=widgets&roleId=${roleId}`,
+      );
+      return result.data;
+  },
+);
+
+<% end %>
+export const ((name))Slice = createSlice({
+    name: '((name))',
+    initialState,
+    reducers: {
+        setRefetch: (state, action: PayloadAction<boolean>) => {
+            state.refetch = action.payload;
+        },
+    },
+    extraReducers: (builder) => {
+        builder.addCase(fetch.pending, (state) => {
+            state.loading = true
+            resetNotify(state);
+        })
+        builder.addCase(fetch.rejected, (state, action) => {
+            state.loading = false
+            rejectNotify(state, action);
+        })
+
+        builder.addCase(fetch.fulfilled, (state, action) => {
+            if (action.payload.rows && action.payload.count >= 0) {
+                state.((name)) = action.payload.rows;
+                state.count = action.payload.count;
+            } else {
+                state.((name)) = action.payload;
+            }
+            state.loading = false
+        })
+
+        builder.addCase(deleteItemsByIds.pending, (state) => {
+            state.loading = true;
+            resetNotify(state);
+        });
+
+        builder.addCase(deleteItemsByIds.fulfilled, (state) => {
+            state.loading = false;
+            fulfilledNotify(state, '((Name)) has been deleted');
+        });
+
+        builder.addCase(deleteItemsByIds.rejected, (state, action) => {
+            state.loading = false;
+            rejectNotify(state, action);
+        });
+
+        builder.addCase(deleteItem.pending, (state) => {
+            state.loading = true
+            resetNotify(state);
+        })
+
+        builder.addCase(deleteItem.fulfilled, (state) => {
+            state.loading = false
+            fulfilledNotify(state, `${'((Name))'.slice(0, -1)} has been deleted`);
+        })
+
+        builder.addCase(deleteItem.rejected, (state, action) => {
+            state.loading = false
+            rejectNotify(state, action);
+        })
+
+        builder.addCase(create.pending, (state) => {
+            state.loading = true
+            resetNotify(state);
+        })
+        builder.addCase(create.rejected, (state, action) => {
+            state.loading = false
+            rejectNotify(state, action);
+        })
+
+        builder.addCase(create.fulfilled, (state) => {
+            state.loading = false
+            fulfilledNotify(state, `${'((Name))'.slice(0, -1)} has been created`);
+        })
+
+        builder.addCase(update.pending, (state) => {
+            state.loading = true
+            resetNotify(state);
+        })
+        builder.addCase(update.fulfilled, (state) => {
+            state.loading = false
+            fulfilledNotify(state, `${'((Name))'.slice(0, -1)} has been updated`);
+        })
+        builder.addCase(update.rejected, (state, action) => {
+            state.loading = false
+            rejectNotify(state, action);
+        })
+
+        builder.addCase(uploadCsv.pending, (state) => {
+            state.loading = true;
+            resetNotify(state);
+        })
+        builder.addCase(uploadCsv.fulfilled, (state) => {
+            state.loading = false;
+            fulfilledNotify(state, '((Name)) has been uploaded');
+        })
+        builder.addCase(uploadCsv.rejected, (state, action) => {
+            state.loading = false;
+            rejectNotify(state, action);
+        })
+
+        <% if '((name))' == 'roles' && @fields.any? { |field| field['@name'] == 'role_customization' } %>
+        builder.addCase(removeWidget.pending, (state) => {
+            state.loading = true;
+        });
+        builder.addCase(removeWidget.fulfilled, (state) => {
+            state.loading = false;
+        });
+        builder.addCase(removeWidget.rejected, (state) => {
+            state.loading = false;
+        });
+
+
+        builder.addCase(fetchWidgets.pending, (state) => {
+            state.loading = true;
+            state.rolesWidgets = [];
+        });
+        builder.addCase(fetchWidgets.fulfilled, (state, action) => {
+            state.loading = false;
+            state.rolesWidgets = action.payload;
+        });
+        builder.addCase(fetchWidgets.rejected, (state) => {
+            state.loading = false;
+            state.rolesWidgets = [];
+        });
+        <% end %>
+    },
+})
+
+// Action creators are generated for each case reducer function
+ export const { setRefetch } = ((name))Slice.actions
+
+export default ((name))Slice.reducer

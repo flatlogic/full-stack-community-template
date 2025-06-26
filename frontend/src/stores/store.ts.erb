@@ -1,0 +1,21 @@
+import { configureStore } from '@reduxjs/toolkit';
+import styleReducer from './styleSlice';
+import mainReducer from './mainSlice';
+import authSlice from './authSlice';
+<% @entities.each_with_index do |e,i| %>
+import <%= e['@name'] %>Slice from "./<%= e['@name'] %>/<%= e['@name'] %>Slice";<% end %>
+
+export const store = configureStore({
+  reducer: {
+    style: styleReducer,
+    main: mainReducer,
+    auth: authSlice,
+<% @entities.each_with_index do |e,i| %>
+<%= e['@name'] %>: <%= e['@name'] %>Slice,<% end %>
+  },
+})
+
+// Infer the `RootState` and `AppDispatch` types from the store itself
+export type RootState = ReturnType<typeof store.getState>
+// Inferred type: {posts: PostsState, comments: CommentsState, users: UsersState}
+export type AppDispatch = typeof store.dispatch

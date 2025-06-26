@@ -1,0 +1,32 @@
+html {
+  @apply h-full;
+}
+
+body {
+  @apply pt-14 xl:pl-60 h-full;
+}
+
+#app {
+  @apply w-screen transition-position lg:w-auto h-full flex flex-col;
+}
+
+.dropdown {
+  @apply cursor-pointer;
+}
+
+li.stack-item:not(:last-child):after {
+  content: '/';
+  @apply inline-block pl-2;
+}
+
+.m-clipped, .m-clipped body {
+  @apply overflow-hidden lg:overflow-visible;
+}
+
+.full-screen body {
+  @apply p-0;
+}
+
+.main-navbar, .app-sidebar-brand {
+  box-shadow: 0px -1px 40px rgba(112, 144, 176, 0.2);
+}

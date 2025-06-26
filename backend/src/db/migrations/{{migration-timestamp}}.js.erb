@@ -1,0 +1,221 @@
+module.exports = {
+    /**
+     * @param {QueryInterface} queryInterface
+     * @param {Sequelize} Sequelize
+     * @returns {Promise<void>}
+     */
+    async up(queryInterface, Sequelize) {
+        /**
+         * @type {Transaction}
+         */
+        const transaction = await queryInterface.sequelize.transaction();
+        try {
+            <% @migration['changes'].each do | change | %>
+                <% if change['@type'].eql?("table:create") %>
+                    await queryInterface.createTable('<%= change['payload']['@table'] %>', {
+                        id: {
+                            type: Sequelize.DataTypes.UUID,
+                            defaultValue: Sequelize.DataTypes.UUIDV4,
+                            primaryKey: true,
+                        },
+                        createdById: {
+                            type: Sequelize.DataTypes.UUID,
+                            references: {
+                                key: 'id',
+                                model: 'users',
+                            },
+                        },
+                        updatedById: {
+                            type: Sequelize.DataTypes.UUID,
+                            references: {
+                                key: 'id',
+                                model: 'users',
+                            },
+                        },
+                        createdAt: { type: Sequelize.DataTypes.DATE },
+                        updatedAt: { type: Sequelize.DataTypes.DATE },
+                        deletedAt: { type: Sequelize.DataTypes.DATE },
+                        importHash: {
+                            type: Sequelize.DataTypes.STRING(255),
+                            allowNull: true,
+                          <% unless @schema['project']['@db'] == 'mssql' %>unique: true, <% end %>
+                        },
+                    }, { transaction });
+                <% elsif change['@type'].eql?('table:change') %>
+                    await queryInterface.renameTable(
+                      '<%= change['payload']['@previous'] %>',
+                      '<%= change['payload']['@current'] %>',
+                      { transaction }
+                    );
+                <% elsif change['@type'].eql?("field:create") && !Generator.many_relation?(change['payload']['field']['@type']) %>
+                    <% if change['payload']['field']['@type'].eql?('enum') && @db.eql?('postgresql') %>
+                        await queryInterface.sequelize.query('DROP TYPE IF EXISTS enum_<%= change['payload']['@table'] %>_<%= change['payload']['field']['@name'] %>;', { transaction });
+                    <% end %>
+                    await queryInterface.addColumn(
+                      '<%= change['payload']['@table'] %>',
+                      '<%= change['payload']['field']['@name'] + (change['payload']['field']['@type'].eql?('relation_one') ? 'Id' : '') %>',
+                      {
+                          type: Sequelize.DataTypes.<%= Generator.get_sequelize_field_type(change['payload']['field']['@type']) %>,
+                          <% if change['payload']['field']['@type'].eql?('boolean') %>
+                            defaultValue: false,
+                            allowNull: false,
+                          <% end %>
+                          <% if change['payload']['field']['@type'].eql?('enum') %>
+                            values: [<%= change['payload']['field']['options'].map { | item | "'#{item}'" }.join(',') %>],
+                          <% end %>
+                          <% if change['payload']['field']['@type'].eql?('relation_one') %>
+                            references: {
+                                model: '<%= change['payload']['field']['@ref'] %>',
+                                key: 'id',
+                            },
+                          <% end %>
+                      },
+                      { transaction }
+                    );
+                <% elsif change['@type'].eql?('field:remove') && !Generator.many_relation?(change['payload']['field']['@type']) %>
+                    await queryInterface.removeColumn(
+                        '<%= change['payload']['@table'] %>',
+                        '<%= change['payload']['field']['@name'] + (change['payload']['field']['@type'].eql?('relation_one') ? 'Id' : '') %>',
+                        { transaction }
+                    );
+                <% elsif change['@type'].eql?('field:change') %>
+                  <% unless change['payload']['previous']['@name'].eql?(change['payload']['current']['@name']) %>
+                    <% if @db.eql?('mysql') && change['payload']['previous']['@type'].eql?('relation_one') %>
+                      await queryInterface.removeConsraint(
+                          '<%= change['payload']['@table'] %>',
+                          '<%= change['payload']['@table'] + '_' + change['payload']['previous']['@name'] + 'Id_foreign_idx' %>',
+                          { transaction }
+                      );
+                    <% end %>
+                    await queryInterface.renameColumn(
+                        '<%= change['payload']['@table'] %>',
+                        '<%= change['payload']['previous']['@name'] + (change['payload']['previous']['@type'].eql?('relation_one') ? 'Id' : '') %>',
+                        '<%= change['payload']['current']['@name'] + (change['payload']['current']['@type'].eql?('relation_one') ? 'Id' : '')%>',
+                        { transaction }
+                    );
+                    <% if @db.eql?('mysql') && change['payload']['previous']['@type'].eql?('relation_one') %>
+                      await queryInterface.addConstraint(
+                          '<%= change['payload']['@table'] %>',
+                          {
+                              transaction,
+                              fields: ['<%= change['payload']['current']['@name'] + 'Id' %>'],
+                              name: '<%= change['payload']['@table'] + '_' + change['payload']['current']['@name'] + 'Id_foreign_idx' %>',
+                              references: {
+                                  table: '<%= change['payload']['@table'] %>',
+                                  field: 'id',
+                              },
+                          },
+                      );
+                    <% end %>
+                  <% end %>
+                <% end %>
+            <% end %>
+            <% remove_changes = @migration['changes'].select { |change| change['@type'].eql?("table:remove") } %>
+            <% remove_changes.each do | change | %>
+              await queryInterface.dropTable('<%= change['payload']['@table'] %>', { transaction });
+            <% end %>
+            await transaction.commit();
+        } catch (err) {
+            await transaction.rollback();
+            throw err;
+        }
+    },
+    /**
+     * @param {QueryInterface} queryInterface
+     * @param {Sequelize} Sequelize
+     * @returns {Promise<void>}
+     */
+    async down(queryInterface, Sequelize) {
+        /**
+         * @type {Transaction}
+         */
+        const transaction = await queryInterface.sequelize.transaction();
+        try {
+            <% @migration['changes'].reverse.each do | change | %>
+                <% if change['@type'].eql?("table:remove") %>
+                    await queryInterface.createTable('<%= change['payload']['@table'] %>', {
+                        id: {
+                            type: Sequelize.DataTypes.UUID,
+                            defaultValue: Sequelize.DataTypes.UUIDV4,
+                            primaryKey: true,
+                        },
+                        createdById: {
+                            type: Sequelize.DataTypes.UUID,
+                            references: {
+                                key: 'id',
+                                model: 'users',
+                            },
+                        },
+                        updatedById: {
+                            type: Sequelize.DataTypes.UUID,
+                            references: {
+                                key: 'id',
+                                model: 'users',
+                            },
+                        },
+                        createdAt: { type: Sequelize.DataTypes.DATE },
+                        updatedAt: { type: Sequelize.DataTypes.DATE },
+                        deletedAt: { type: Sequelize.DataTypes.DATE },
+                        importHash: {
+                            type: Sequelize.DataTypes.STRING(255),
+                            allowNull: true,
+                            unique: true,
+                        },
+                    }, { transaction });
+                <% elsif change['@type'].eql?('table:change') %>
+                    await queryInterface.renameTable(
+                      '<%= change['payload']['@current'] %>',
+                      '<%= change['payload']['@previous'] %>',
+                      { transaction }
+                    );
+                <% elsif change['@type'].eql?("field:remove") && !Generator.many_relation?(change['payload']['field']['@type']) %>
+                    <% if change['payload']['field']['@type'].eql?('enum') && @db.eql?('postgresql') %>
+                      await queryInterface.sequelize.query('DROP TYPE IF EXISTS enum_<%= change['payload']['@table'] %>_<%= change['payload']['field']['@name'] %>;', { transaction });
+                    <% end %>
+                    await queryInterface.addColumn(
+                      '<%= change['payload']['@table'] %>',
+                      '<%= change['payload']['field']['@name'] + (change['payload']['field']['@type'].eql?('relation_one') ? 'Id' : '') %>',
+                      {
+                          type: Sequelize.DataTypes.<%= Generator.get_sequelize_field_type(change['payload']['field']['@type']) %>,
+                          <% if change['payload']['field']['@type'].eql?('boolean') %>
+                            defaultValue: false,
+                            allowNull: false,
+                          <% end %>
+                          <% if change['payload']['field']['@type'].eql?('enum') %>
+                            values: [<%= change['payload']['field']['options'].map { | item | "'#{item}'" }.join(',') %>],
+                          <% end %>
+                          <% if change['payload']['field']['@type'].eql?('relation_one') %>
+                            references: {
+                                model: '<%= change['payload']['field']['@ref'] %>',
+                                key: 'id',
+                            },
+                          <% end %>
+                      },
+                      { transaction }
+                    );
+                <% elsif change['@type'].eql?('field:create') && !Generator.many_relation?(change['payload']['field']['@type']) %>
+                    await queryInterface.removeColumn(
+                        '<%= change['payload']['@table'] %>',
+                        '<%= change['payload']['field']['@name'] + (change['payload']['field']['@type'].eql?('relation_one') ? 'Id' : '') %>',
+                        { transaction }
+                    );
+                <% elsif change['@type'].eql?('field:change') %>
+                  <% unless change['payload']['previous']['@name'].eql?(change['payload']['current']['@name']) %>
+                    await queryInterface.renameColumn(
+                        '<%= change['payload']['@table'] %>',
+                        '<%= change['payload']['current']['@name'] + (change['payload']['current']['@type'].eql?('relation_one') ? 'Id' : '')%>',
+                        '<%= change['payload']['previous']['@name'] + (change['payload']['previous']['@type'].eql?('relation_one') ? 'Id' : '') %>',
+                        { transaction }
+                    );
+                  <% end %>
+                <% elsif change['@type'].eql?("table:create") %>
+                    await queryInterface.dropTable('<%= change['payload']['@table'] %>', { transaction });
+                <% end %>
+            <% end %>
+            await transaction.commit();
+        } catch (err) {
+            await transaction.rollback();
+            throw err;
+        }
+    }
+};

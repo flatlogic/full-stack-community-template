@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<%
+  title = @schema['project']['@title']
+  description = @schema['project']['@short_description']
+%>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Starting</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #EFF2FF;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            padding: 30px 40px;
+            background-color: #fff;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            max-width: 538px;
+            width: 100%;
+            box-shadow: 0 13px 34px 0 rgba(167, 187, 242, 0.2);
+            box-sizing: border-box;
+        }
+
+        #status-heading {
+            font-size: 24px;
+            font-weight: 700;
+            color: #02004E;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        p {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        .tip {
+            font-weight: 300;
+            font-size: 17px;
+            line-height: 150%;
+            letter-spacing: 0;
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .loader-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loader {
+            width: 100px;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            background:
+                radial-gradient(farthest-side, #5C7EF1 94%, #0000) top/8px 8px no-repeat,
+                conic-gradient(#0000 30%, #5C7EF1);
+            -webkit-mask: radial-gradient(farthest-side, #0000 calc(100% - 8px), #000 0);
+            animation: l13 2s infinite linear;
+        }
+
+        @keyframes l13 {
+            100% {
+                transform: rotate(1turn)
+            }
+        }
+
+        .app-logo {
+            position: absolute;
+            width: 36px;
+        }
+
+        .panel {
+            padding: 0 18px;
+            display: none;
+            background-color: white;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .show {
+            display: block;
+        }
+
+        .project-info {
+            border: 1px solid #8C9DFF;
+            border-radius: 10px;
+            padding: 12px 16px;
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #FBFCFF;
+        }
+
+        .project-info h2 {
+            color: #02004E;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+
+        .project-info p {
+            color: #686791;
+            font-size: 12px;
+            font-weight: 400;
+            text-align: left;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2 id="status-heading">Loading the app, just a moment…</h2>
+        <p class="tip">The application is currently launching. The page will automatically refresh once site is
+            available.</p>
+        <div class="project-info">
+            <h2><%= title %></h2>
+            <p><%= description %></p>
+        </div>
+        <div class="loader-container">
+            <img src="https://flatlogic.com/blog/wp-content/uploads/2025/05/logo-bot-1.png" alt="App Logo"
+                class="app-logo">
+            <div class="loader"></div>
+        </div>
+        <div class="panel">
+            <video width="100%" height="315" controls loop>
+                <source
+                    src="https://flatlogic.com/blog/wp-content/uploads/2025/04/20250430_1336_professional_dynamo_spinner_simple_compose_01jt349yvtenxt7xhg8hhr85j8.mp4"
+                    type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </div>
+    <script>
+        function checkAvailability() {
+            fetch('/')
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        setTimeout(checkAvailability, 5000);
+                    }
+                })
+                .catch(() => {
+                    setTimeout(checkAvailability, 5000);
+                });
+        }
+        document.addEventListener('DOMContentLoaded', checkAvailability);
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const appTitle = document.querySelector('#status-heading');
+            const panel = document.querySelector('.panel');
+            const video = panel.querySelector('video');
+            let clickCount = 0;
+
+            appTitle.addEventListener('click', function () {
+                clickCount++;
+                if (clickCount === 5) {
+                    panel.classList.toggle('show');
+                    if (panel.classList.contains('show')) {
+                        video.play();
+                    } else {
+                        video.pause();
+                    }
+                    clickCount = 0;
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

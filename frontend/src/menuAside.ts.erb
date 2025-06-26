@@ -1,0 +1,54 @@
+import * as icon from '@mdi/js';
+import { MenuAsideItem } from './interfaces'
+
+const menuAside: MenuAsideItem[] = [
+  {
+    href: '/dashboard',
+    icon: icon.mdiViewDashboardOutline,
+    label: 'Dashboard',
+  },
+  <%
+    @entities.each do |e|
+    entity_name = e['@name']
+    entity_cap_name = e['@name_cap']
+
+    next if ['roles', 'permissions'].include?(entity_name)
+
+    icon_value = 'icon.mdiTable'
+    suggested_icon_name = e['@icon']
+
+    if entity_name == 'users'
+      icon_value = 'icon.mdiAccountGroup'
+    elsif entity_name == 'roles'
+      icon_value = 'icon.mdiShieldAccountVariantOutline'
+    elsif entity_name == 'permissions'
+      icon_value = 'icon.mdiShieldAccountOutline'
+    elsif suggested_icon_name
+      javascript_safe_icon_name = suggested_icon_name.gsub(/[^a-zA-Z0-9_]/, '')
+      icon_value = "'#{javascript_safe_icon_name}' in icon ? icon['#{javascript_safe_icon_name}' as keyof typeof icon] : icon.mdiTable"
+    end
+  %>
+  {
+    href: '/<%= entity_name %>/<%= entity_name %>-list',
+    label: '<%= entity_cap_name.humanize %>',
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    icon: <%= icon_value %> ?? icon.mdiTable,
+    permissions: 'READ_<%= entity_name.upcase %>'
+  },<% end %>
+  {
+    href: '/profile',
+    label: 'Profile',
+    icon: icon.mdiAccountCircle,
+  },
+
+ {
+    href: '/api-docs',
+    target: '_blank',
+    label: 'Swagger API',
+    icon: icon.mdiFileCode,
+    permissions: 'READ_API_DOCS'
+  },
+]
+
+export default menuAside

@@ -1,0 +1,115 @@
+@layer base {
+  table {
+    @apply w-full;
+  }
+
+  thead {
+    @apply hidden lg:table-header-group;
+  }
+
+  tr {
+    @apply max-w-full block relative border-b-4 border-gray-100
+      lg:table-row lg:border-b-0 dark:border-slate-800;
+  }
+
+  tr:last-child {
+    @apply border-b-0;
+  }
+
+  td:not(:first-child) {
+    @apply lg:border-l lg:border-t-0 lg:border-r-0 lg:border-b-0 lg:border-gray-100 lg:dark:border-slate-700;
+  }
+
+  th {
+    @apply lg:text-left lg:p-3 border-b;
+  }
+
+  th.sortable {
+    cursor: pointer;
+  }
+
+  th.sortable:hover:after {
+    transition: all 1s;
+    position: absolute;
+
+    content: "↕";
+
+    margin-left: 1rem;
+  }
+
+  th.sortable.asc:hover:after {
+    content: "↑";
+  }
+  th.sortable.desc:hover:after {
+    content: "↓";
+  }
+
+  td {
+    @apply flex justify-between text-right py-3 px-4 align-top border-b border-gray-100
+      lg:table-cell lg:text-left lg:p-3 lg:align-middle lg:border-b-0 dark:border-slate-800 dark:text-white;
+  }
+
+  td:last-child {
+    @apply border-b-0;
+  }
+
+  tbody tr, tbody tr:nth-child(odd) {
+    @apply lg:hover:bg-brand-300/70;
+  }
+
+  tbody tr:nth-child(even) {
+    @apply lg:bg-brand-300 dark:bg-brand-300/70;
+  }
+
+  td:before {
+    content: attr(data-label);
+    @apply font-semibold pr-3 text-left lg:hidden;
+  }
+
+  tbody tr td {
+    @apply text-sm font-normal text-brand-900 dark:text-white;
+  }
+
+  .datagrid--table, .MuiDataGrid-root {
+    @apply rounded border-none !important;
+  }
+
+  .datagrid--header {
+    @apply uppercase  !important;
+  }
+
+  .datagrid--header,
+  .datagrid--header .MuiIconButton-root,
+  .datagrid--cell,
+  .datagrid--cell .MuiIconButton-root {
+    @apply dark:text-white;
+  }
+
+  .datagrid--cell .MuiDataGrid-booleanCell {
+    @apply dark:text-white !important;
+  }
+
+  .datagrid--cell .MuiIconButton-root:hover {
+    @apply dark:text-white dark:bg-dark-700;
+  }
+
+  .datagrid--row {
+    @apply even:bg-gray-100 dark:even:bg-[#1B1D22] dark:odd:bg-dark-900 !important;
+  }
+
+  .datagrid--table .MuiTablePagination-root {
+    @apply dark:text-white;
+  }
+
+  .datagrid--table .MuiTablePagination-root .MuiButtonBase-root:disabled {
+    @apply dark:text-dark-700;
+  }
+
+  .datagrid--table .MuiTablePagination-root .MuiButtonBase-root:hover {
+    @apply dark:bg-dark-700;
+  }
+
+  .MuiButton-colorInherit {
+    @apply text-blue-600 dark:text-dark-700 !important;
+  }
+}

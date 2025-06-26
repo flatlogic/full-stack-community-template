@@ -1,0 +1,15 @@
+import React from 'react'
+
+type Props = {
+  className?: string
+}
+
+export default function Logo({ className = '' }: Props) {
+  return (
+    <img
+      src={"<%= if @schema['project']['@white_label'] && @schema['project']['@company_logo_link'] != '' then @schema['project']['@company_logo_link'] else 'https://flatlogic.com/logo.svg' end %>"}
+      className={className}
+      alt={'<%= if @schema['project']['@white_label'] && @schema['project']['@company_name'] != '' then @schema['project']['@company_name'] else 'Flatlogic' end %> logo'}>
+    </img>
+  )
+}

@@ -1,0 +1,73 @@
+# Base image for Node.js dependencies
+FROM node:20.15.1-alpine AS frontend-deps
+RUN apk add --no-cache git
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/yarn.lock ./
+RUN yarn install --pure-lockfile
+
+FROM node:20.15.1-alpine AS backend-deps
+RUN apk add --no-cache git
+WORKDIR /app/backend
+COPY backend/package.json backend/yarn.lock ./
+RUN yarn install --pure-lockfile
+
+FROM node:20.15.1-alpine AS app-shell-deps
+RUN apk add --no-cache git
+WORKDIR /app/app-shell
+COPY app-shell/package.json app-shell/yarn.lock ./
+RUN yarn install --pure-lockfile
+
+# Nginx setup and application build
+FROM node:20.15.1-alpine AS build
+RUN apk add --no-cache git nginx
+RUN apk add --no-cache lsof procps
+RUN yarn global add concurrently
+
+RUN mkdir -p /app/pids
+
+# Make sure to add yarn global bin to PATH
+ENV PATH /root/.yarn/bin:/root/.config/yarn/global/node_modules/.bin:$PATH
+
+# Copy dependencies
+WORKDIR /app
+COPY --from=frontend-deps /app/frontend /app/frontend
+COPY --from=backend-deps /app/backend /app/backend
+COPY --from=app-shell-deps /app/app-shell /app/app-shell
+
+COPY frontend /app/frontend
+COPY backend /app/backend
+COPY app-shell /app/app-shell
+COPY docker /app/docker
+
+# Copy Nginx configuration
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Copy custom error page
+COPY 502.html /usr/share/nginx/html/502.html
+
+# Change owner and permissions of the error page
+RUN chown nginx:nginx /usr/share/nginx/html/502.html && \
+    chmod 644 /usr/share/nginx/html/502.html
+
+# Copy all files from root to /app
+COPY . /app
+
+# Expose the port the app runs on
+EXPOSE 8080
+ENV NODE_ENV=dev_stage
+ENV FRONT_PORT=3001
+ENV BACKEND_PORT=3000
+ENV APP_SHELL_PORT=4000
+
+CMD ["sh", "-c", "\
+  yarn --cwd /app/frontend dev & echo $! > /app/pids/frontend.pid && \
+  yarn --cwd /app/backend start & echo $! > /app/pids/backend.pid && \
+  sleep 10 && nginx -g 'daemon off;' & \
+  NGINX_PID=$! && \
+  echo 'Waiting for backend (port 3000) to be available...' && \
+  while ! nc -z localhost ${BACKEND_PORT}; do \
+    sleep 2; \
+  done && \
+  echo 'Backend is up. Starting app_shell for Git check...' && \
+  yarn --cwd /app/app-shell start && \
+  wait $NGINX_PID"]

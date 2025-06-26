@@ -1,0 +1,31 @@
+.react-select__control {
+  @apply dark:bg-dark-800 dark:border-dark-700 !important;
+}
+
+.react-select__single-value {
+  @apply dark:text-white !important;
+}
+
+.react-select__menu {
+  @apply dark:border-dark-700
+}
+
+.react-select__menu-list {
+  @apply dark:bg-dark-800 dark:border-dark-700 dark:rounded !important;
+}
+
+.react-select__option {
+  @apply cursor-pointer hover:bg-gray-200 dark:hover:bg-dark-700 !important;
+}
+
+.react-select__option--is-focused  {
+  @apply dark:bg-dark-800 dark:text-white hover:dark:bg-dark-700 hover:dark:text-white !important;
+}
+
+.react-select__option--is-selected, .react-select__option--is-selected:hover {
+  @apply dark:bg-dark-600 !important;
+}
+
+.react-select__multi-value__remove {
+  @apply dark:bg-dark-600 dark:text-white hover:dark:bg-red-300 hover:dark:text-red-600 !important;
+}

@@ -1,0 +1,12 @@
+{
+  "name": "app",
+  "version": "0.0.0"<% unless @schema['@backend'] == 'no-backend' %>,
+<% if ['nodejs', 'nodejs2'].include?(@schema['project']['@backend']) %>"scripts": {
+    "build:production": "cd ./frontend && yarn install && yarn run build && rm -rf ./node_modules && cd ../backend && yarn install",
+    "start:production": "cd ./backend && NODE_ENV=production yarn start"
+  }<% end %>
+<% if @schema['project']['@backend'] == 'laravel' %>"scripts": {
+  "build:production": "cd ./frontend && yarn install && yarn run build && rm -rf ./node_modules"
+  }<% end %>
+  <% end %>
+}

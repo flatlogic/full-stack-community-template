@@ -1,0 +1,103 @@
+
+.theme-pink {
+.app-sidebar {
+  @apply bg-brand-900 text-white;
+
+.menu-title,
+.menu-item-icon,
+.menu-item-link {
+  @apply text-white;
+}
+}
+
+.app-sidebar-brand {
+  @apply bg-white;
+}
+
+.bg-blue-600 {
+  @apply bg-brand-800;
+}
+
+.border-blue-700 {
+  @apply border-pink-700;
+}
+
+.checkbox input[type=checkbox]:checked + .check, .radio input[type=radio]:checked + .check {
+  @apply border-brand-800;
+}
+
+.helper-container .tab {
+  @apply bg-brand-900;
+}
+
+.focus\:ring:focus {
+  --tw-ring-color: #14142A;
+}
+
+.checkbox input[type=checkbox]:focus + .check, .radio input[type=radio]:focus + .check, .switch input[type=checkbox]:focus + .check {
+  --tw-ring-color: #14142A;
+}
+
+}
+
+.theme-green {
+
+.app-sidebar {
+  @apply bg-brand-800 text-white;
+
+.menu-title,
+.menu-item-icon,
+.menu-item-link {
+  @apply text-white;
+}
+
+}
+
+.app-sidebar-brand {
+  @apply bg-white;
+}
+
+.bg-blue-600 {
+  @apply bg-brand-800;
+}
+
+.border-blue-700 {
+  @apply bg-brand-700;
+}
+
+.hover\:bg-blue-700:hover {
+  @apply bg-brand-700;
+}
+
+.text-blue-600 {
+  @apply text-brand-900;
+}
+
+.checkbox input[type=checkbox]:checked + .check, .radio input[type=radio]:checked + .check {
+  @apply border-brand-800;
+}
+
+.helper-container .tab {
+  @apply bg-brand-700;
+}
+
+.focus\:ring:focus {
+  --tw-ring-color: #4E4B66;
+}
+
+.checkbox input[type=checkbox]:focus + .check, .radio input[type=radio]:focus + .check, .switch input[type=checkbox]:focus + .check {
+  --tw-ring-color: #4E4B66;
+}
+
+.text-blue-500 {
+  @apply text-brand-800;
+}
+
+.hover\:text-blue-600:hover {
+  @apply text-brand-800;
+}
+
+.active\:text-blue-700:active {
+  @apply text-brand-800;
+}
+}

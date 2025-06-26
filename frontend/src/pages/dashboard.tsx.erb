@@ -1,0 +1,124 @@
+import * as icon from '@mdi/js';
+import Head from 'next/head'
+import React from 'react'
+import axios from 'axios';
+import type { ReactElement } from 'react'
+import LayoutAuthenticated from '../layouts/Authenticated'
+import SectionMain from '../components/SectionMain'
+import SectionTitleLineWithButton from '../components/SectionTitleLineWithButton'
+import BaseIcon from "../components/BaseIcon";
+
+import Link from "next/link";
+import { useAppSelector } from '../stores/hooks';
+const Dashboard = () => {
+    const iconsColor = useAppSelector((state) => state.style.iconsColor);
+    const corners = useAppSelector((state) => state.style.corners);
+    const cardsStyle = useAppSelector((state) => state.style.cardsStyle);
+
+    const loadingMessage = 'Loading...'
+
+    <% @entities.each_with_index do |e,i| %>
+    const [<%= e['@name'] %>, set<%= e['@name_cap'] %>] = React.useState(loadingMessage);<% end %>
+
+    async function loadData() {
+        const entities = [<% @entities.each_with_index do |e,i| %>'<%= e['@name'] %>',<% end %>];
+        const fns = [<% @entities.each do |e| %>set<%= e['@name_cap'] %>,<% end %>];
+
+        const requests = entities.map((entity, index) => {
+            return axios.get(`/${entity.toLowerCase()}/count`);
+        });
+
+        Promise.allSettled(requests).then((results) => {
+            results.forEach((result, i) => {
+                if (result.status === 'fulfilled') {
+                    fns[i](result.value.data.count);
+                } else {
+                    fns[i](result.reason.message);
+                }
+            });
+        });
+    }
+
+  React.useEffect(() => {
+      loadData().then();
+  }, []);
+
+  return (
+    <>
+      <Head>
+        <title>
+            {'Overview'}
+        </title>
+      </Head>
+      <SectionMain>
+        <SectionTitleLineWithButton
+            icon={icon.mdiChartTimelineVariant}
+            title={'Overview'}
+            main>
+          {''}
+        </SectionTitleLineWithButton>
+
+        <div id="dashboard" className='grid grid-cols-1 gap-6 lg:grid-cols-3 mb-6'>
+          <% @entities.each do |e|
+            entity_name = e['@name']
+            entity_cap_name = e['@name_cap']
+
+            next if ['roles', 'permissions'].include?(entity_name)
+
+            suggested_icon_name = e['@icon']
+            icon = 'icon.mdiTable'
+
+            if suggested_icon_name
+              javascript_safe_icon_name = suggested_icon_name.gsub(/[^a-zA-Z0-9_]/, '')
+              icon = "'#{javascript_safe_icon_name}' in icon ? icon['#{javascript_safe_icon_name}' as keyof typeof icon] : icon.mdiTable"
+            else
+              icon = 'icon.mdiTable'
+            end
+
+            if entity_name == 'users'
+              icon = 'icon.mdiAccountGroup'
+            elsif entity_name == 'roles'
+              icon = 'icon.mdiShieldAccountVariantOutline'
+            elsif entity_name == 'permissions'
+              icon = 'icon.mdiShieldAccountOutline'
+            end
+          %>
+            <Link href={'/<%= entity_name %>/<%= entity_name %>-list'}>
+                <div
+                    className={`${corners !== 'rounded-full'? corners : 'rounded-3xl'} dark:bg-dark-900 ${cardsStyle} dark:border-dark-700 p-6`}
+                >
+                    <div className="flex justify-between align-center">
+                        <div>
+                            <div className="text-lg leading-tight  <%= @schema['project']['@theme'] && @schema['project']['@theme'] == 'neonGreenTheme'  ? " text-gray-200" : " text-gray-500" %> dark:text-gray-400">
+                              <%= entity_cap_name.humanize %>
+                            </div>
+                            <div className="text-3xl leading-tight font-semibold">
+                                {<%= entity_name %>}
+                            </div>
+                        </div>
+                        <div>
+                            <BaseIcon
+                                className={`${iconsColor}`}
+                                w="w-16"
+                                h="h-16"
+                                size={48}
+                                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                                // @ts-ignore
+                                path={<%= icon %> || icon.mdiTable}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </Link>
+          <% end %>
+        </div>
+      </SectionMain>
+    </>
+  )
+}
+
+Dashboard.getLayout = function getLayout(page: ReactElement) {
+  return <LayoutAuthenticated>{page}</LayoutAuthenticated>
+}
+
+export default Dashboard

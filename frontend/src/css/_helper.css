@@ -1,0 +1,23 @@
+.helper-container {
+  right: 0;
+  top: 70px;
+  transform: translateX(100%);
+
+  .tab {
+    top: 0;
+    left: 0;
+    transform: translateX(-100%);
+  }
+
+  .tab:hover {
+    @apply bg-gray-900 cursor-pointer;
+  }
+}
+
+.helper-container.open {
+  transform: translateX(0);
+}
+
+.react-datepicker-wrapper, .react-datepicker-popper {
+  z-index: 10 !important;
+}

@@ -1,0 +1,71 @@
+<%  db_name = 'db_' + @schema['project']['@title'].downcase.gsub(/([\s]|[^a-z0-9])/,'_') %>
+
+module.exports = {
+  production: {<% if @schema['project']['@db'] == 'mysql' %>
+    dialect: 'mysql',
+    username: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_NAME,
+    timestamps: false,
+    dialectOptions: {
+      socketPath: process.env.DB_HOST
+    },
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    logging: console.log,
+    seederStorage: 'sequelize',
+  <% end %><% if @schema['project']['@db'] == 'postgresql' %>
+    dialect: 'postgres',
+    username: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_NAME,
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    logging: console.log,
+    seederStorage: 'sequelize',
+  <% end %><% if @schema['project']['@db'] == 'mssql' %>
+    dialect: 'mssql',
+    username: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    host: '34.170.164.23' || process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT,
+    logging: console.log,
+    seederStorage: 'sequelize',
+  <% end %>},
+  development: {<% if @schema['project']['@db'] == 'mysql' %>
+    username: 'root',
+    dialect: 'mysql',
+    password: '',
+    database: '<%=db_name%>',
+    host: process.env.DB_HOST || 'localhost',
+    logging: console.log,
+    seederStorage: 'sequelize',
+  <% end %><% if @schema['project']['@db'] == 'postgresql' %>
+    username: 'postgres',
+    dialect: 'postgres',
+    password: '',
+    database: '<%=db_name%>',
+    host: process.env.DB_HOST || 'localhost',
+    logging: console.log,
+    seederStorage: 'sequelize',
+  <% end %><% if @schema['project']['@db'] == 'mssql' %>
+    dialect: 'mssql',
+    username: 'sa',
+    password: 'Demo12345',
+    host: process.env.DB_HOST || 'localhost',
+    database: '<%=db_name%>',
+    port: '1433',
+    seederStorage: 'sequelize',
+    logging: console.log<% end %>},
+    dev_stage: {
+      dialect: 'postgres',
+      username: process.env.DB_USER,
+      password: process.env.DB_PASS,
+      database: process.env.DB_NAME,
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      logging: console.log,
+      seederStorage: 'sequelize',
+    }
+};

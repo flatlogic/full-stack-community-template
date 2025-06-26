@@ -1,0 +1,119 @@
+const config = require('../../config');
+const providers = config.providers;
+const crypto = require('crypto');
+const bcrypt = require('bcrypt');
+const moment = require('moment');
+
+module.exports = function(sequelize, DataTypes) {
+  const ((name)) = sequelize.define(
+    '((name))',
+    {
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
+<%
+  form_fields = @fields.select{|f| ['int', 'decimal', 'date', 'datetime', 'string', 'enum', 'boolean'].include? f['@type'] }
+  form_fields.each_with_index do |f,i|
+%>
+<%=f['@name']%>: {
+        type: DataTypes.<%= Generator.get_sequelize_field_type(f['@type']) %>,
+      <% if f['@type'] == 'boolean' %>
+        allowNull: false,
+        defaultValue: false,
+      <% end %>
+      <% if f['@type'] == 'date' %>
+        get: function() {
+          return this.getDataValue('<%=f['@name']%>')
+            ? moment
+                .utc(this.getDataValue('<%=f['@name']%>'))
+                .format('YYYY-MM-DD')
+            : null;
+        },
+      <% end %>
+<% if f['@type'] == 'enum' %>
+        values: [
+<%
+  options = f['options']
+  options.each_with_index do |o,j|
+  last_index = options.size - 1
+%>
+"<%=o%>"<%
+if j != last_index
+%>,
+<% end %>
+<% end %>
+        ],
+<% end %>
+      },
+<% end %>
+      importHash: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        unique: true,
+      },
+    },
+    {
+      timestamps: true,
+      paranoid: true,
+      freezeTableName: true,
+    },
+  );
+
+  ((name)).associate = (db) => {
+
+    db.((name)).belongsTo(db.users, {
+      as: 'createdBy',
+    });
+
+    db.((name)).belongsTo(db.users, {
+      as: 'updatedBy',
+    });
+  };
+
+<% if '((name))' == 'users' %>
+    users.beforeCreate((users, options) => {
+        users = trimStringFields(users);
+
+    if (users.provider !== providers.LOCAL && Object.values(providers).indexOf(users.provider) > -1) {
+        users.emailVerified = true;
+
+        if (!users.password) {
+            const password = crypto
+                .randomBytes(20)
+                .toString('hex');
+
+            const hashedPassword = bcrypt.hashSync(
+            password,
+            config.bcrypt.saltRounds,
+        );
+
+            users.password = hashedPassword
+            }
+        }
+    });
+
+  users.beforeUpdate((users, options) => {
+    users = trimStringFields(users);
+  });
+  <% end %>
+
+  return ((name));
+};
+
+<% if '((name))' == 'users' %>
+function trimStringFields(users) {
+  users.email = users.email.trim();
+
+  users.firstName = users.firstName
+    ? users.firstName.trim()
+    : null;
+
+  users.lastName = users.lastName
+    ? users.lastName.trim()
+    : null;
+
+  return users;
+}
+<% end %>

@@ -1,0 +1,44 @@
+<%
+  require 'openssl'
+  require 'base64'
+%>
+<%
+  minimal_schema = {
+    "entities" => @schema["entities"],
+    "migrations" => @schema["migrations"]
+  }
+  json_string = minimal_schema.to_json.gsub(/"@(\w+)":/, '"\1":')
+%>
+<%
+  key_b64 = 'oAYZbSQ7otWLWy/1v6KGwzcpfe4LxdtkDcAUD7HAaw0='
+  raise "SCHEMA_ENCRYPTION_KEY environment variable is not set or empty" if key_b64.nil? || key_b64.empty?
+
+  key = Base64.strict_decode64(key_b64)
+  raise "Invalid key length: expected 32 bytes for AES-256-GCM" unless key.bytesize == 32
+
+  cipher = OpenSSL::Cipher.new('aes-256-gcm').encrypt
+  cipher.key = key
+
+  iv = cipher.random_iv
+  cipher.iv = iv
+
+  encrypted_data = cipher.update(json_string) + cipher.final
+  auth_tag = cipher.auth_tag
+
+  iv_b64 = Base64.strict_encode64(iv)
+
+  ciphertext_with_tag = encrypted_data + auth_tag
+  ciphertext_b64 = Base64.strict_encode64(ciphertext_with_tag)
+
+  encrypted_payload = {
+    "iv" => iv_b64,
+    "encryptedData" => ciphertext_b64
+  }
+  output_payload_string = encrypted_payload.to_json
+
+  escaped_output_payload_string = output_payload_string.gsub('"', '\\"')
+%>
+
+{
+  "Initial version": "<%= escaped_output_payload_string %>"
+}

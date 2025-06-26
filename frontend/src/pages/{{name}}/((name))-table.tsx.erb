@@ -1,0 +1,153 @@
+import { mdiChartTimelineVariant } from '@mdi/js'
+import Head from 'next/head'
+import { uniqueId } from 'lodash';
+import React, { ReactElement, useState } from 'react'
+import CardBox from '../../components/CardBox'
+import LayoutAuthenticated from '../../layouts/Authenticated'
+import SectionMain from '../../components/SectionMain'
+import SectionTitleLineWithButton from '../../components/SectionTitleLineWithButton'
+import { getPageTitle } from '../../config'
+import Table((Name)) from '../../components/((Name))/Table((Name))'
+import BaseButton from '../../components/BaseButton'
+import axios from "axios";
+import {useAppDispatch, useAppSelector} from "../../stores/hooks";
+import CardBoxModal from "../../components/CardBoxModal";
+import DragDropFilePicker from "../../components/DragDropFilePicker";
+import {setRefetch, uploadCsv} from '../../stores/((name))/((name))Slice';
+
+const ((Name))TablesPage = () => {
+  const [filterItems, setFilterItems] = useState([]);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [isModalActive, setIsModalActive] = useState(false);
+
+  const dispatch = useAppDispatch();
+
+
+  const [filters] = useState([<%
+form_fields = @fields.select{|f| f['@show_in_table'] and f['@type'] == 'string'}
+form_fields.each_with_index do |f,i|
+%>{label: '<%=f['@title']%>', title: '<%=f['@name']%>'},<% end %>
+          <%
+    form_fields = @fields.select{|f| f['@show_in_table'] and f['@type'] == 'int'}
+    form_fields.each_with_index do |f,i|
+    %>{label: '<%=f['@title']%>', title: '<%=f['@name']%>', number: 'true'},<% end %>
+          <%
+    form_fields = @fields.select{|f| f['@show_in_table'] and f['@type'] == 'decimal'}
+    form_fields.each_with_index do |f,i|
+    %>{label: '<%=f['@title']%>', title: '<%=f['@name']%>', number: 'true'},<% end %>
+          <%
+    form_fields = @fields.select{|f| f['@show_in_table'] and f['@type'] == 'datetime'}
+    form_fields.each_with_index do |f,i|
+    %>{label: '<%=f['@title']%>', title: '<%=f['@name']%>', date: 'true'},<% end %>
+    <%
+      form_fields = @fields.select{|f| f['@show_in_table'] and f['@type'] == 'relation_one'}
+      form_fields.each_with_index do |f,i|
+    %>
+    <% end %>
+    <%
+      form_fields = @fields.select{|f| f['@show_in_table'] and f['@type'] == 'enum'}
+      form_fields.each_with_index do |f,i|
+    %>{label: '<%=f['@title']%>', title: '<%=f['@name']%>', type: 'enum', options: [<%=f['options'].map{|v| "'#{v}'"}.join(',')%>]},<% end %>
+  ]);
+    const addFilter = () => {
+        const newItem = {
+            id: uniqueId(),
+            fields: {
+                filterValue: '',
+                filterValueFrom: '',
+                filterValueTo: '',
+                selectedField: '',
+            },
+        };
+        newItem.fields.selectedField = filters[0].title;
+        setFilterItems([...filterItems, newItem]);
+    };
+
+    const get((Name))CSV = async () => {
+        const response = await axios({url: '/((name))?filetype=csv', method: 'GET',responseType: 'blob'});
+        const type = response.headers['content-type']
+        const blob = new Blob([response.data], { type: type })
+        const link = document.createElement('a')
+        link.href = window.URL.createObjectURL(blob)
+        link.download = '((name))CSV.csv'
+        link.click()
+    };
+
+    const onModalConfirm = async () => {
+        if (!csvFile) return;
+        await dispatch(uploadCsv(csvFile));
+        dispatch(setRefetch(true));
+        setCsvFile(null);
+        setIsModalActive(false);
+    };
+
+    const onModalCancel = () => {
+        setCsvFile(null);
+        setIsModalActive(false);
+    };
+
+  return (
+    <>
+      <Head>
+        <title>{getPageTitle('((Name))')}</title>
+      </Head>
+      <SectionMain>
+        <SectionTitleLineWithButton icon={mdiChartTimelineVariant} title="((Name))" main>
+        {''}
+        </SectionTitleLineWithButton>
+        <CardBox className='mb-6' cardBoxClassName='flex flex-wrap'>
+          <BaseButton className={'mr-3'} href={'/((name))/((name))-new'} color='info' label='New Item' />
+
+          <BaseButton
+              className={'mr-3'}
+              color='info'
+              label='Filter'
+              onClick={addFilter}
+          />
+          <BaseButton className={'mr-3'} color='info' label='Download CSV' onClick={get((Name))CSV} />
+            <BaseButton
+              color='info'
+              label='Upload CSV'
+              onClick={() => setIsModalActive(true)}
+            />
+          <div className='md:inline-flex items-center ms-auto'>
+            <div id='delete-rows-button'></div>
+          </div>
+        </CardBox>
+        <CardBox className="mb-6" hasTable>
+          <Table((Name))
+            filterItems={filterItems}
+            setFilterItems={setFilterItems}
+            filters={filters}
+            showGrid={true}
+            />
+        </CardBox>
+      </SectionMain>
+      <CardBoxModal
+          title='Upload CSV'
+          buttonColor='info'
+          buttonLabel={'Confirm'}
+        // buttonLabel={false ? 'Deleting...' : 'Confirm'}
+          isActive={isModalActive}
+          onConfirm={onModalConfirm}
+          onCancel={onModalCancel}
+      >
+          <DragDropFilePicker
+              file={csvFile}
+              setFile={setCsvFile}
+              formats={'.csv'}
+          />
+      </CardBoxModal>
+    </>
+  )
+}
+
+((Name))TablesPage.getLayout = function getLayout(page: ReactElement) {
+  return (
+      <LayoutAuthenticated>
+          {page}
+      </LayoutAuthenticated>
+  )
+}
+
+export default ((Name))TablesPage

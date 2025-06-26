@@ -1,0 +1,248 @@
+import React, { ReactElement, useEffect } from 'react';
+import Head from 'next/head'
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import dayjs from "dayjs";
+import {useAppDispatch, useAppSelector} from "../../stores/hooks";
+import {useRouter} from "next/router";
+import { fetch } from '../../stores/((name))/((name))Slice'
+import dataFormatter from '../../helpers/dataFormatter';
+import LayoutAuthenticated from "../../layouts/Authenticated";
+import {getPageTitle} from "../../config";
+import SectionTitleLineWithButton from "../../components/SectionTitleLineWithButton";
+import SectionMain from "../../components/SectionMain";
+import CardBox from "../../components/CardBox";
+import BaseButton from "../../components/BaseButton";
+import BaseDivider from "../../components/BaseDivider";
+import {mdiChartTimelineVariant} from "@mdi/js";
+import {SwitchField} from "../../components/SwitchField";
+import FormField from "../../components/FormField";
+
+const ((Name))View = () => {
+    const router = useRouter()
+    const dispatch = useAppDispatch()
+    const { ((name)) } = useAppSelector((state) => state.((name)))
+
+    const { id } = router.query;
+    
+    function removeLastCharacter(str) {
+      console.log(str,`str`)
+      return str.slice(0, -1);
+    }
+
+    useEffect(() => {
+        dispatch(fetch({ id }));
+    }, [dispatch, id]);
+
+
+    return (
+      <>
+          <Head>
+              <title>{getPageTitle('View ((name))')}</title>
+          </Head>
+          <SectionMain>
+            <SectionTitleLineWithButton icon={mdiChartTimelineVariant} title={removeLastCharacter('View ((name))')} main>
+                <BaseButton
+                  color='info'
+                  label='Edit'
+                  href={`/((name))/((name))-edit/?id=${id}`}
+                />
+            </SectionTitleLineWithButton>
+            <CardBox>
+            <%
+              form_fields = @fields.select{|f| f['@show_in_form']}
+              form_fields.each_with_index do |f,i|
+            %>
+
+              <% if f['@type'] == 'string' and !f['@multiline'] %>
+                <div className={'mb-4'}>
+                    <p className={'block font-bold mb-2'}><%=f['@title']%></p>
+                    <p>{((name))?.<%=f['@name']%>}</p>
+                </div>
+              <% end %>
+
+              <% if f['@type'] == 'string' and f['@multiline'] == true and !f['@wysiwygEditor'] %>
+                <FormField label='Multi Text' hasTextareaHeight>
+                  <textarea className={'w-full'} disabled value={((name))?.<%=f['@name']%>} />
+                </FormField>
+              <% end %>
+
+              <% if f['@type'] == 'string' and f['@multiline'] == true and f['@wysiwygEditor'] == true %>
+                <div className={'mb-4'}>
+                  <p className={'block font-bold mb-2'}><%=f['@title']%></p>
+                  {((name)).<%=f['@name']%>
+                    ? <p dangerouslySetInnerHTML={{__html: ((name)).<%=f['@name']%>}}/>
+                    : <p>No data</p>
+                  }
+                </div>
+              <% end %>
+
+              <% if f['@type'] == 'int' or f['@type'] == 'decimal' %>
+                <div className={'mb-4'}>
+                  <p className={'block font-bold mb-2'}><%=f['@title']%></p>
+                  <p>{((name))?.<%=f['@name']%> || 'No data'}</p>
+                </div>
+              <% end %>
+
+              <% if f['@type'] == 'date' %>
+                <FormField label='<%=f['@title']%>'>
+                    {((name)).<%=f['@name']%> ? (
+                      <DatePicker
+                        dateFormat="yyyy-MM-dd"
+                        showTimeSelect
+                        selected={((name)).<%=f['@name']%> ?
+                            new Date(
+                                dayjs(((name)).<%=f['@name']%>).format('YYYY-MM-DD hh:mm'),
+                            ) : null
+                        }
+                        disabled
+                      />
+                    ) : <p>No <%=f['@title']%></p>}
+                </FormField>
+              <% end %>
+
+              <% if f['@type'] == 'datetime' %>
+                <FormField label='<%=f['@title']%>'>
+                    {((name)).<%=f['@name']%> ? <DatePicker
+                      dateFormat="yyyy-MM-dd hh:mm"
+                      showTimeSelect
+                      selected={((name)).<%=f['@name']%> ?
+                        new Date(
+                          dayjs(((name)).<%=f['@name']%>).format('YYYY-MM-DD hh:mm'),
+                        ) : null
+                      }
+                      disabled
+                    /> : <p>No <%=f['@title']%></p>}
+                </FormField>
+              <% end %>
+
+              <% if f['@type'] == 'enum' and f['@widget'] == 'radio' %>
+                <div className={'mb-4'}>
+                    <p className={'block font-bold mb-2'}><%=f['@title']%></p>
+                    <p>{((name))?.<%=f['@name']%> ?? 'No data'}</p>
+                </div>
+              <% end %>
+
+              <% if f['@type'] == 'enum' and (f['@widget'] == 'select' or !f['@widget']) %>
+                <div className={'mb-4'}>
+                    <p className={'block font-bold mb-2'}><%=f['@title']%></p>
+                    <p>{((name))?.<%=f['@name']%> ?? 'No data'}</p>
+                </div>
+              <% end %>
+
+              <% if f['@type'] == 'boolean' %>
+                <FormField label='<%=f['@title']%>'>
+                    <SwitchField
+                      field={{name: '<%=f['@name']%>', value: ((name))?.<%=f['@name']%>}}
+                      form={{setFieldValue: () => null}}
+                      disabled
+                    />
+                </FormField>
+              <% end %>
+
+              <% if f['@type'] == 'relation_one' %>
+                <div className={'mb-4'}>
+                    <p className={'block font-bold mb-2'}><%=f['@title']%></p>
+                    <%
+                        @entities.each_with_index do |e,i|
+                        entity_name = e['@name']
+                    %>
+                    <%
+                        ref_to_cur = false
+                        @all_fields.each_with_index do |j,i|
+                        ref_to_cur = true if j['@ref'] == entity_name && j === f
+                        end
+                        if ref_to_cur
+                    %>
+                        <p>{((name))?.<%=f['@name']%>?.<%=e['@show_field']%> ?? 'No data'}</p>
+                    <% end %>
+                    <% end %>
+                </div>
+              <% end %>
+              <% end %>
+
+                <%
+                  @entities.each_with_index do |entity, i|
+                  entity_fields = entity['fields']
+                  form_fields = entity_fields.select{|f| f['@ref'] == '((name))' && entity['@name'] != '((name))' && f['@type'] == 'relation_one' }
+                  form_fields.each_with_index do |t,i|
+                %>
+                <>
+                    <p className={'block font-bold mb-2'}><%=entity['@name_cap']%> <%=t['@title']%></p>
+                    <CardBox
+                      className='mb-6 border border-gray-300 rounded overflow-hidden'
+                      hasTable
+                    >
+                        <div className='overflow-x-auto'>
+                            <table>
+                            <thead>
+                            <tr>
+                                <%
+                                     form_fields = entity['fields'].select{|j| j['@show_in_table']}
+                                     form_fields.each_with_index do |j,i|
+                                    %>
+                                <% if j['@type'] != 'relation_one' and j['@type'] != 'relation_many' and j['@type'] != 'images' and j['@type'] != 'files' and !j['@wysiwygEditor'] %>
+                                <th><%=j['@title']%></th>
+                                <% end %>
+                                <% end %>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {((name)).<%=entity['@name']%>_<%=t['@name']%> && Array.isArray(((name)).<%=entity['@name']%>_<%=t['@name']%>) &&
+                              ((name)).<%=entity['@name']%>_<%=t['@name']%>.map((item: any) => (
+                                <tr key={item.id} onClick={() => router.push(`/<%=entity['@name']%>/<%=entity['@name']%>-view/?id=${item.id}`)}>
+                                    <%
+                                        form_fields = entity['fields'].select{|j| j['@show_in_table']}
+                                        form_fields.each_with_index do |j,i|
+                                      %>
+                                    <% if j['@type'] == 'date' %>
+                                    <td data-label="<%=j['@name']%>">
+                                        { dataFormatter.dateFormatter(item.<%=j['@name']%>) }
+                                    </td>
+                                    <% elsif j['@type'] == 'datetime' %>
+                                    <td data-label="<%=j['@name']%>">
+                                        { dataFormatter.dateTimeFormatter(item.<%=j['@name']%>) }
+                                    </td>
+                                    <% elsif j['@type'] == 'boolean' %>
+                                    <td data-label="<%=j['@name']%>">
+                                        { dataFormatter.booleanFormatter(item.<%=j['@name']%>) }
+                                    </td>
+                                    <% elsif j['@type'] != 'relation_one' and j['@type'] != 'relation_many' and j['@type'] != 'images' and j['@type'] != 'files' and !j['@wysiwygEditor'] %>
+                                    <td data-label="<%=j['@name']%>">
+                                        { item.<%=j['@name']%> }
+                                    </td>
+                                    <% end %>
+                                    <% end %>
+                                </tr>
+                              ))}
+                            </tbody>
+                        </table>
+                        </div>
+                        {!((name))?.<%=entity['@name']%>_<%=t['@name']%>?.length && <div className={'text-center py-4'}>No data</div>}
+                    </CardBox>
+                </>
+                <% end %>
+                <% end %>
+
+                <BaseDivider />
+
+                <BaseButton
+                    color='info'
+                    label='Back'
+                    onClick={() => router.push('/((name))/((name))-list')}
+                />
+              </CardBox>
+          </SectionMain>
+      </>
+    );
+};
+
+((Name))View.getLayout = function getLayout(page: ReactElement) {
+    return (
+      <LayoutAuthenticated>
+          {page}
+      </LayoutAuthenticated>
+    )
+}
+
+export default ((Name))View;

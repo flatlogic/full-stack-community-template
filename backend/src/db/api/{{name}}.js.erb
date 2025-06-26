@@ -1,0 +1,526 @@
+<%
+    scalar_fields = @fields.select{|f| ['string', 'date', 'datetime', 'enum', 'int', 'decimal', 'boolean'].include? f['@type']}
+%>
+const db = require('../models');
+const crypto = require('crypto');
+const Utils = require('../utils');
+<% if '((name))' == 'users' %>
+const bcrypt = require('bcrypt');
+const config = require('../../config');
+<% end %>
+
+const Sequelize = db.Sequelize;
+const Op = Sequelize.Op;
+
+module.exports = class ((Name))DBApi {
+    <% if '((name))' == 'users' %>
+    static async create(data, options) {
+        const currentUser = (options && options.currentUser) || { id: null };
+        const transaction = (options && options.transaction) || undefined;
+        const ((name)) = await db.((name)).create(
+        {
+            id: data.data.id || undefined,
+        <%
+            scalar_fields.each_with_index do |f,i|
+        %>
+            <%=f['@name']%>: data.data.<%=f['@name']%>
+            ||
+            <% if f['@name'] == 'emailVerified' %>true
+            <% elsif f['@type'] == 'boolean' %>false
+            <% elsif f['@name'] == 'role' and '((name))' == 'users' %>'user'
+            <% else %>null<% end %>,
+        <% end %>
+        importHash: data.data.importHash || null,
+        createdById: currentUser.id,
+        updatedById: currentUser.id,
+    },
+        { transaction },
+    );
+
+    return ((name));
+    }
+    <% end %>
+
+    <% if '((name))' != 'users' %>
+    static async create(data, options) {
+        const currentUser = (options && options.currentUser) || { id: null };
+        const transaction = (options && options.transaction) || undefined;
+
+        const ((name)) = await db.((name)).create(
+            {
+                id: data.id || undefined,
+        <%
+      scalar_fields.each_with_index do |f,i|
+      %>
+        <%=f['@name']%>: data.<%=f['@name']%>
+        ||
+        <% if f['@type'] == 'boolean' %>false
+        <% elsif f['@name'] == 'role' and '((name))' == 'users' %>'user'
+        <% else %>null<% end %>
+            ,
+            <% end %>
+            importHash: data.importHash || null,
+            createdById: currentUser.id,
+            updatedById: currentUser.id,
+    },
+        { transaction },
+    );
+
+        return ((name));
+    }
+    <% end %>
+
+    static async bulkImport(data, options) {
+        const currentUser = (options && options.currentUser) || { id: null };
+        const transaction = (options && options.transaction) || undefined;
+
+        // Prepare data - wrapping individual data transformations in a map() method
+        const ((name))Data = data.map((item, index) => ({
+                id: item.id || undefined,
+                <% scalar_fields.each_with_index do |f,i| %>
+                <%=f['@name']%>: item.<%=f['@name']%>
+            ||
+            <% if f['@type'] == 'boolean' %>false
+        <% elsif f['@name'] == 'role' and '((name))' == 'users' %>'user'
+        <% else %>null<% end %>
+            ,
+            <% end %>
+            importHash: item.importHash || null,
+            createdById: currentUser.id,
+            updatedById: currentUser.id,
+            createdAt: new Date(Date.now() + index * 1000),
+    }));
+
+        // Bulk create items
+        const ((name)) = await db.((name)).bulkCreate(((name))Data, { transaction });
+
+        return ((name));
+    }
+
+    static async update(id, data, options) {
+        const currentUser = (options && options.currentUser) || {id: null};
+        const transaction = (options && options.transaction) || undefined;
+
+        const ((name)) = await db.((name)).findByPk(id, {}, {transaction});
+
+
+        <% if '((name))' == 'users' %>
+
+        if (!data?.app_role) {
+            data.app_role = users?.app_role?.id;
+        }
+        if (!data?.custom_permissions) {
+            data.custom_permissions = users?.custom_permissions?.map(item => item.id);
+        }
+
+        if (data.password) {
+            data.password = bcrypt.hashSync(
+                data.password,
+                config.bcrypt.saltRounds,
+            );
+        } else {
+            data.password = users.password;
+        }
+        <% end %>
+
+        const updatePayload = {};
+        <% scalar_fields.each do |f| %>
+        if (data.<%= f['@name'] %> !== undefined) updatePayload.<%= f['@name'] %> = data.<%= f['@name'] %>;
+        <% if f['@name'] == 'emailVerified' %>
+        else updatePayload.emailVerified = true;
+        <% elsif f['@name'] == 'role' and '((name))' == 'users' %>
+        else updatePayload.role = 'user';
+        <% end %>
+        <% end %>
+        updatePayload.updatedById = currentUser.id;
+
+        await ((name)).update(updatePayload, {transaction});
+
+        return ((name));
+    }
+
+    static async deleteByIds(ids, options) {
+        const currentUser = (options && options.currentUser) || { id: null };
+        const transaction = (options && options.transaction) || undefined;
+
+        const ((name)) = await db.((name)).findAll({
+            where: {
+                id: {
+                    [Op.in]: ids,
+                },
+            },
+            transaction,
+        });
+
+        await db.sequelize.transaction(async (transaction) => {
+            for (const record of ((name))) {
+                await record.update(
+                    {deletedBy: currentUser.id},
+                    {transaction}
+                );
+            }
+            for (const record of ((name))) {
+                await record.destroy({transaction});
+            }
+        });
+
+
+        return ((name));
+    }
+
+    static async remove(id, options) {
+        const currentUser = (options && options.currentUser) || {id: null};
+        const transaction = (options && options.transaction) || undefined;
+
+        const ((name)) = await db.((name)).findByPk(id, options);
+
+        await ((name)).update({
+            deletedBy: currentUser.id
+        }, {
+            transaction,
+        });
+
+        await ((name)).destroy({
+            transaction
+        });
+
+        return ((name));
+    }
+
+    static async findBy(where, options) {
+        const transaction = (options && options.transaction) || undefined;
+
+        const ((name)) = await db.((name)).findOne(
+            { where },
+            { transaction },
+        );
+
+        if (!((name))) {
+            return ((name));
+        }
+
+        const output = ((name)).get({plain: true});
+
+        return output;
+    }
+
+    static async findAll(filter, options) {
+        const limit = filter.limit || 0;
+        let offset = 0;
+        let where = {};
+        const currentPage = +filter.page;
+
+        const user = (options && options.currentUser) || null;
+
+        offset = currentPage * limit;
+
+        const orderBy = null;
+
+        const transaction = (options && options.transaction) || undefined;
+
+        let include = [];
+
+        if (filter) {
+            if (filter.id) {
+                where = {
+                    ...where,
+                    ['id']: Utils.uuid(filter.id),
+                };
+            }
+
+            <%
+                form_fields = @fields.select{|f| f['@type'] == 'string' }
+                form_fields.each_with_index do |f,i|
+            %>
+                if (filter.<%=f['@name']%>) {
+                    where = {
+                        ...where,
+                        [Op.and]: Utils.ilike(
+                            '((name))',
+                            '<%=f['@name']%>',
+                            filter.<%=f['@name']%>,
+                        ),
+                    };
+                }
+            <% end %>
+
+
+            <%
+                form_fields = @fields.select{|f| ['int', 'decimal', 'date', 'datetime'].include? f['@type'] }
+                form_fields.each_with_index do |f,i|
+            %>
+            if (filter.<%=f['@name']%>Range) {
+                const [start, end] = filter.<%=f['@name']%>Range;
+
+                if (start !== undefined && start !== null && start !== '') {
+                    where = {
+                        ...where,
+                    <%=f['@name']%>: {
+                    ...where.<%=f['@name']%>,
+                            [Op.gte]: start,
+                    },
+                };
+                }
+
+                if (end !== undefined && end !== null && end !== '') {
+                    where = {
+                        ...where,
+                    <%=f['@name']%>: {
+                    ...where.<%=f['@name']%>,
+                            [Op.lte]: end,
+                    },
+                };
+                }
+            }
+            <% end %>
+
+            if (filter.active !== undefined) {
+                where = {
+                    ...where,
+                    active: filter.active === true || filter.active === 'true'
+                };
+            }
+
+            <%
+                form_fields = @fields.select{|f| f['@type'] == 'enum' or f['@type'] == 'boolean'}
+                form_fields.each_with_index do |f,i|
+            %>
+            if (filter.<%=f['@name']%>) {
+                where = {
+                    ...where,
+                <%=f['@name']%>: filter.<%=f['@name']%>,
+            };
+            }
+            <% end %>
+
+            if (filter.createdAtRange) {
+                const [start, end] = filter.createdAtRange;
+
+                if (start !== undefined && start !== null && start !== '') {
+                    where = {
+                        ...where,
+                        ['createdAt']: {
+                            ...where.createdAt,
+                            [Op.gte]: start,
+                        },
+                    };
+                }
+
+                if (end !== undefined && end !== null && end !== '') {
+                    where = {
+                        ...where,
+                        ['createdAt']: {
+                            ...where.createdAt,
+                            [Op.lte]: end,
+                        },
+                    };
+                }
+            }
+        }
+
+
+        const queryOptions = {
+            where,
+            include,
+            distinct: true,
+            order: filter.field && filter.sort
+                ? [[filter.field, filter.sort]]
+                : [['createdAt', 'desc']],
+            transaction: options?.transaction,
+            logging: console.log
+        };
+
+        if (!options?.countOnly) {
+            queryOptions.limit = limit ? Number(limit) : undefined;
+            queryOptions.offset = offset ? Number(offset) : undefined;
+        }
+
+        try {
+            const { rows, count } = await db.((name)).findAndCountAll(queryOptions);
+
+            return {
+                rows: options?.countOnly ? [] : rows,
+                count: count
+            };
+        } catch (error) {
+            console.error('Error executing query:', error);
+            throw error;
+        }
+    }
+
+    static async findAllAutocomplete(query, limit, offset) {
+        let where = {};
+
+        if (query) {
+            where = {
+                [Op.or]: [
+                    { ['id']: Utils.uuid(query) },
+                    Utils.ilike(
+                        '((name))',
+                        '<%= @entity['@show_field'].present? ? @entity['@show_field'] : 'id' %>',
+                        query,
+                    ),
+                ],
+            };
+        }
+
+        const records = await db.((name)).findAll({
+            attributes: [ 'id', '<%= @entity['@show_field'].present? ? @entity['@show_field'] : 'id' %>' ],
+            where,
+            limit: limit ? Number(limit) : undefined,
+            offset: offset ? Number(offset) : undefined,
+            orderBy: [['<%= @entity['@show_field'].present? ? @entity['@show_field'] : 'id' %>', 'ASC']],
+        });
+
+        return records.map((record) => ({
+            id: record.id,
+            label: record.<%= @entity['@show_field'].present? ? @entity['@show_field'] : 'id' %>,
+        }));
+    }
+
+    <% if '((name))' == 'users' %>
+    static async createFromAuth(data, options) {
+        const transaction = (options && options.transaction) || undefined;
+        const users = await db.users.create(
+            {
+                email: data.email,
+                firstName: data.firstName,
+                authenticationUid: data.authenticationUid,
+                password: data.password,
+            },
+            { transaction },
+        );
+
+        const app_role = await db.roles.findOne({
+            where: { name: config.roles?.user || "User" },
+        });
+        if (app_role?.id) {
+            await users.setApp_role(app_role?.id || null, {
+                transaction,
+            });
+        }
+
+        await users.update(
+            {
+                authenticationUid: users.id,
+            },
+            { transaction },
+        );
+
+        delete users.password;
+        return users;
+    }
+
+    static async updatePassword(id, password, options) {
+        const currentUser = (options && options.currentUser) || { id: null };
+
+        const transaction = (options && options.transaction) || undefined;
+
+        const users = await db.users.findByPk(id, {
+            transaction,
+        });
+
+        await users.update(
+            {
+                password,
+                authenticationUid: id,
+                updatedById: currentUser.id,
+            },
+            { transaction },
+        );
+
+        return users;
+    }
+
+    static async generateEmailVerificationToken(email, options) {
+        return this._generateToken(['emailVerificationToken', 'emailVerificationTokenExpiresAt'], email, options);
+    }
+
+    static async generatePasswordResetToken(email, options) {
+        return this._generateToken(['passwordResetToken', 'passwordResetTokenExpiresAt'], email, options);
+    }
+
+    static async findByPasswordResetToken(token, options) {
+        const transaction = (options && options.transaction) || undefined;
+
+        return db.users.findOne(
+            {
+                where: {
+                    passwordResetToken: token,
+                    passwordResetTokenExpiresAt: {
+                        [db.Sequelize.Op.gt]: Date.now(),
+                    },
+                },
+            },
+            { transaction },
+        );
+    }
+
+    static async findByEmailVerificationToken(token, options) {
+        const transaction = (options && options.transaction) || undefined;
+        return db.users.findOne(
+            {
+                where: {
+                    emailVerificationToken: token,
+                    emailVerificationTokenExpiresAt: {
+                        [db.Sequelize.Op.gt]: Date.now(),
+                    },
+                },
+            },
+            { transaction },
+        );
+    }
+
+    static async markEmailVerified(id, options) {
+        const currentUser = (options && options.currentUser) || { id: null };
+        const transaction = (options && options.transaction) || undefined;
+
+        const users = await db.users.findByPk(id, {
+            transaction,
+        });
+
+        await users.update(
+            {
+                emailVerified: true,
+                updatedById: currentUser.id,
+            },
+            { transaction },
+        );
+
+        return true;
+    }
+
+    static async _generateToken(keyNames, email, options) {
+        const currentUser = (options && options.currentUser) || {id: null};
+        const transaction = (options && options.transaction) || undefined;
+        const users = await db.users.findOne(
+            {
+                where: { email: email.toLowerCase() },
+            },
+            {
+                transaction,
+            },
+        );
+
+        const token = crypto
+            .randomBytes(20)
+            .toString('hex');
+        const tokenExpiresAt = Date.now() + 360000;
+
+        if(users){
+            await users.update(
+                {
+                    [keyNames[0]]: token,
+                    [keyNames[1]]: tokenExpiresAt,
+                    updatedById: currentUser.id,
+                },
+                {transaction},
+            );
+        }
+
+
+        return token;
+    }
+    <% end %>
+};
+

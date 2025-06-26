@@ -1,0 +1,306 @@
+import { mdiChartTimelineVariant, mdiUpload } from '@mdi/js'
+import Head from 'next/head'
+import React, { ReactElement, useEffect, useState } from 'react'
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import dayjs from "dayjs";
+
+import CardBox from '../../components/CardBox'
+import LayoutAuthenticated from '../../layouts/Authenticated'
+import SectionMain from '../../components/SectionMain'
+import SectionTitleLineWithButton from '../../components/SectionTitleLineWithButton'
+import { getPageTitle } from '../../config'
+
+import { Field, Form, Formik } from 'formik'
+import FormField from '../../components/FormField'
+import BaseDivider from '../../components/BaseDivider'
+import BaseButtons from '../../components/BaseButtons'
+import BaseButton from '../../components/BaseButton'
+import FormCheckRadio from '../../components/FormCheckRadio'
+import FormCheckRadioGroup from '../../components/FormCheckRadioGroup'
+import { SelectField } from "../../components/SelectField";
+import { SelectFieldMany } from "../../components/SelectFieldMany";
+import { SwitchField } from '../../components/SwitchField'
+import {RichTextField} from "../../components/RichTextField";
+
+import { update, fetch } from '../../stores/((name))/((name))Slice'
+import { useAppDispatch, useAppSelector } from '../../stores/hooks'
+import { useRouter } from 'next/router'
+
+const Edit((Name)) = () => {
+  const router = useRouter()
+  const dispatch = useAppDispatch()
+  const initVals = {
+      <%
+  form_fields = @fields.select{|f| f['@show_in_form']}
+  form_fields.each_with_index do |f,i|
+%>
+    <% if (f['@type'] == 'string' and !f['@multiline']) or f['@type']=='decimal'%>
+    '<%=f['@name']%>': '',
+    <% end %>
+
+    <% if f['@type'] == 'string' and f['@multiline'] == true and !f['@wysiwygEditor'] %>
+    <%=f['@name']%>: '',
+    <% end %>
+
+    <% if f['@type'] == 'string' and f['@multiline'] == true and f['@wysiwygEditor'] == true %>
+    <%=f['@name']%>: '',
+    <% end %>
+
+    <% if f['@type'] == 'int' %>
+    <%=f['@name']%>: '',
+    <% end %>
+
+    <% if f['@type'] == 'date' %>
+    <%=f['@name']%>: new Date(),
+    <% end %>
+
+    <% if f['@type'] == 'datetime' %>
+    <%=f['@name']%>: new Date(),
+    <% end %>
+
+    <% if f['@type'] == 'boolean' %>
+    <%=f['@name']%>: false,
+    <% end %>
+
+    <% if f['@type'] == 'enum' and f['@widget'] == 'radio' %>
+    <%=f['@name']%>: '',
+    <% end %>
+
+    <% if f['@type'] == 'enum' and (f['@widget'] == 'select' or !f['@widget']) %>
+    <%=f['@name']%>: '',
+    <% end %>
+
+    <% if f['@type'] == 'relation_one' %>
+    <%=f['@name']%>: null,
+    <% end %>
+
+    <% end %>
+    <% if '((name))' == 'users' %>
+    password: ''
+    <% end %>
+  }
+  const [initialValues, setInitialValues] = useState(initVals)
+
+  const { ((name)) } = useAppSelector((state) => state.((name)))
+
+  const { ((name))Id } = router.query
+
+  useEffect(() => {
+    dispatch(fetch({ id: ((name))Id }))
+  }, [((name))Id])
+
+  useEffect(() => {
+    if (typeof ((name)) === 'object') {
+      setInitialValues(((name)))
+    }
+  }, [((name))])
+
+  useEffect(() => {
+      if (typeof ((name)) === 'object') {
+
+          const newInitialVal = {...initVals};
+
+          Object.keys(initVals).forEach(el => newInitialVal[el] = (((name)))[el])
+
+          setInitialValues(newInitialVal);
+      }
+  }, [((name))])
+
+  const handleSubmit = async (data) => {
+    await dispatch(update({ id: ((name))Id, data }))
+    await router.push('/((name))/((name))-list')
+  }
+
+  return (
+    <>
+      <Head>
+        <title>{getPageTitle('Edit ((name))')}</title>
+      </Head>
+      <SectionMain>
+        <SectionTitleLineWithButton icon={mdiChartTimelineVariant} title={'Edit ((name))'} main>
+        {''}
+        </SectionTitleLineWithButton>
+        <CardBox>
+          <Formik
+            enableReinitialize
+            initialValues={initialValues}
+            onSubmit={(values) => handleSubmit(values)}
+          >
+            <Form>
+<%
+  form_fields = @fields.select{|f| f['@show_in_form']}
+  form_fields.each_with_index do |f,i|
+%>
+
+  <% if f['@type'] == 'string' and !f['@multiline'] %>
+    <FormField
+        label="<%=f['@title']%>"
+    >
+        <Field
+            name="<%=f['@name']%>"
+            placeholder="<%=f['@title']%>"
+        />
+    </FormField>
+  <% end %>
+
+  <% if f['@type'] == 'string' and f['@multiline'] == true and !f['@wysiwygEditor'] %>
+    <FormField label="<%=f['@title']%>" hasTextareaHeight>
+        <Field name="<%=f['@name']%>" as="textarea" placeholder="<%=f['@title']%>" />
+    </FormField>
+  <% end %>
+
+  <% if f['@type'] == 'string' and f['@multiline'] == true and f['@wysiwygEditor'] == true %>
+    <FormField label='<%=f['@title']%>' hasTextareaHeight>
+        <Field
+            name='<%=f['@name']%>'
+            id='<%=f['@name']%>'
+            component={RichTextField}
+        ></Field>
+    </FormField>
+  <% end %>
+
+  <% if f['@type'] == 'int' or f['@type'] == 'decimal' %>
+    <FormField
+        label="<%=f['@title']%>"
+    >
+        <Field
+            type="number"
+            name="<%=f['@name']%>"
+            placeholder="<%=f['@title']%>"
+        />
+    </FormField>
+  <% end %>
+
+  <% if f['@type'] == 'date' %>
+    <FormField
+        label="<%=f['@title']%>"
+    >
+        <DatePicker
+            dateFormat="yyyy-MM-dd"
+            selected={initialValues.<%=f['@name']%> ?
+                new Date(
+                    dayjs(initialValues.<%=f['@name']%>).format('YYYY-MM-DD hh:mm'),
+                ) : null
+            }
+            onChange={(date) => setInitialValues({...initialValues, '<%=f['@name']%>': date})}
+        />
+    </FormField>
+  <% end %>
+
+  <% if f['@type'] == 'datetime' %>
+      <FormField
+          label="<%=f['@title']%>"
+      >
+          <DatePicker
+              dateFormat="yyyy-MM-dd hh:mm"
+              showTimeSelect
+              selected={initialValues.<%=f['@name']%> ?
+                  new Date(
+                      dayjs(initialValues.<%=f['@name']%>).format('YYYY-MM-DD hh:mm'),
+                  ) : null
+              }
+              onChange={(date) => setInitialValues({...initialValues, '<%=f['@name']%>': date})}
+          />
+      </FormField>
+  <% end %>
+
+  <% if f['@type'] == 'enum' and f['@widget'] == 'radio' %>
+    <FormField label="<%=f['@title']%>">
+        <FormCheckRadioGroup>
+          <%
+  options = f['options']
+  options.each_with_index do |o,j|
+  %>
+            <FormCheckRadio type="radio" label="<%=o%>">
+                <Field type="radio" name="<%=f['@name']%>" value="<%=o%>" />
+            </FormCheckRadio>
+          <% end %>
+        </FormCheckRadioGroup>
+    </FormField>
+  <% end %>
+
+  <% if f['@type'] == 'enum' and (f['@widget'] == 'select' or !f['@widget']) %>
+    <FormField label="<%=f['@title']%>" labelFor="<%=f['@name']%>">
+        <Field name="<%=f['@name']%>" id="<%=f['@name']%>" component="select">
+          <%
+  options = f['options']
+  options.each_with_index do |o,j|
+  %>
+            <option value="<%=o%>"><%=o%></option>
+          <% end %>
+        </Field>
+    </FormField>
+  <% end %>
+
+  <% if f['@type'] == 'boolean' %>
+    <FormField label='<%=f['@title']%>' labelFor='<%=f['@name']%>'>
+        <Field
+            name='<%=f['@name']%>'
+            id='<%=f['@name']%>'
+            component={SwitchField}
+        ></Field>
+    </FormField>
+  <% end %>
+
+  <% if f['@type'] == 'relation_one' %>
+    <FormField label='<%=f['@title']%>' labelFor='<%=f['@name']%>'>
+        <Field
+            name='<%=f['@name']%>'
+            id='<%=f['@name']%>'
+            component={SelectField}
+            options={initialValues.<%=f['@name']%>}
+            itemRef={'<%=f['@ref']%>'}
+      <%
+        @entities.each_with_index do |e,i|
+        entity_name = e['@name']
+      %>
+        <%
+          ref_to_cur = false
+          @all_fields.each_with_index do |j,i|
+            ref_to_cur = true if j['@ref'] == entity_name && j === f
+          end
+          if ref_to_cur
+        %>
+            showField={'<%=e['@show_field']%>'}
+        <% end %>
+      <% end %>
+        ></Field>
+    </FormField>
+
+  <% end %>
+<% end %>
+  <% if '((name))' == 'users' %>
+    <FormField
+        label="Password"
+    >
+        <Field
+            name="password"
+            placeholder="password"
+        />
+    </FormField>
+  <% end %>
+
+              <BaseDivider />
+              <BaseButtons>
+                <BaseButton type="submit" color="info" label="Submit" />
+                <BaseButton type="reset" color="info" outline label="Reset" />
+                <BaseButton type='reset' color='danger' outline label='Cancel' onClick={() => router.push('/((name))/((name))-list')}/>
+              </BaseButtons>
+            </Form>
+          </Formik>
+        </CardBox>
+      </SectionMain>
+    </>
+  )
+}
+
+Edit((Name)).getLayout = function getLayout(page: ReactElement) {
+  return (
+      <LayoutAuthenticated>
+          {page}
+      </LayoutAuthenticated>
+  )
+}
+
+export default Edit((Name))
