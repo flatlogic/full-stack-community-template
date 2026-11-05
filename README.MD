@@ -339,3 +339,6 @@ export const routes = [
 
 <% end %>
 ```
+
+Dependency updates, lockfile ownership, and reproducible local checks are
+covered in [the dependency maintenance guide](docs/security-dependency-updates.md).

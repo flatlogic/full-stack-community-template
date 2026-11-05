@@ -47,7 +47,7 @@ Current request is compiling and may take a few moments.
     }, [compilationStatus]);
 
     useEffect(() => {
-        if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev_stage') {
+        if (['development', 'dev_stage'].includes(process.env.NODE_ENV)) {
             setIsVisible(true);
 
             setBadgeStyles(prev => ({

@@ -3,7 +3,7 @@ import {Editor} from "@tinymce/tinymce-react";
 import { tinyKey } from '../config'
 import {useAppSelector} from "../stores/hooks";
 
-export const RichTextField = ({ options, field, form, itemRef, showField }) => {
+export const RichTextField = ({ options, field, form, itemRef, showField, tinymceScriptSrc = undefined, licenseKey = undefined }) => {
     const [value, setValue] = useState(null);
     const darkMode = useAppSelector((state) => state.style.darkMode);
 
@@ -24,13 +24,16 @@ export const RichTextField = ({ options, field, form, itemRef, showField }) => {
             onEditorChange={handleChange}
             value={value || ''}
             apiKey={tinyKey}
+            cloudChannel="8"
+            tinymceScriptSrc={tinymceScriptSrc}
+            licenseKey={licenseKey}
             init={{
                 plugins:
-                    'advlist autolink lists link image charmap print preview anchor' +
-                    'searchreplace visualblocks code fullscreen' +
-                    'insertdatetime media table paste help wordcount',
+                    'advlist autolink lists link image charmap preview anchor ' +
+                    'searchreplace visualblocks code fullscreen ' +
+                    'insertdatetime media table help wordcount',
                 toolbar:
-                    'undo redo | formatselect | ' +
+                    'undo redo | blocks | ' +
                     'bold italic backcolor | alignleft aligncenter ' +
                     'alignright alignjustify | bullist numlist outdent indent | ' +
                     'removeformat | code',

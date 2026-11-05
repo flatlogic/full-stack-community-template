@@ -1,0 +1,9 @@
+**/node_modules/
+.security-fixture/
+backend/package.json
+**/yarn-error.log
+**/build/
+**/out/
+**/.next/
+**/*.tsbuildinfo
+.security-dependencies-cache/

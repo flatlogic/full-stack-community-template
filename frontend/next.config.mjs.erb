@@ -5,15 +5,13 @@
 const output = process.env.NODE_ENV === 'production' ? 'export' : 'standalone';
  const nextConfig = {
 trailingSlash: true,
+  outputFileTracingRoot: process.cwd(),
   distDir: 'build',
   output,
   basePath: "",
   devIndicators: {
      position: 'bottom-left',
   },
-   typescript: {
-       ignoreBuildErrors: true,
-   },
   images: {
     unoptimized: true,
     remotePatterns: [
