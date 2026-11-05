@@ -52,7 +52,7 @@ function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   React.useEffect(() => {
         const handleMessage = async (event: MessageEvent) => {
             if (event.data === 'getLocation') {
-                event.source?.postMessage(
+                (event.source as Window)?.postMessage(
                     { iframeLocation: window.location.pathname },
                     event.origin,
                 );
@@ -64,10 +64,10 @@ function MyApp({ Component, pageProps }: AppPropsWithLayout) {
                     const html2canvas = (await import('html2canvas')).default;
                     const canvas = await html2canvas(document.body, { useCORS: true });
                     const url = canvas.toDataURL('image/jpeg', 0.8);
-                    event.source?.postMessage({ iframeScreenshot: url }, event.origin);
+                    (event.source as Window)?.postMessage({ iframeScreenshot: url }, event.origin);
                 } catch (e) {
                     console.error('html2canvas failed', e);
-                    event.source?.postMessage({ iframeScreenshot: null }, event.origin);
+                    (event.source as Window)?.postMessage({ iframeScreenshot: null }, event.origin);
                 }
             }
         };
@@ -112,7 +112,7 @@ function MyApp({ Component, pageProps }: AppPropsWithLayout) {
           <ErrorBoundary>
             <Component {...pageProps} />
           </ErrorBoundary>
-          {(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev_stage') && <DevModeBadge />}
+          {(['development', 'dev_stage'].includes(process.env.NODE_ENV)) && <DevModeBadge />}
         </>
       )}
     </Provider>

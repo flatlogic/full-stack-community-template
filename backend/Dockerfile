@@ -1,4 +1,4 @@
-FROM node:20.15.1-alpine
+FROM node:22.23.0-alpine
 
 RUN apk update && apk add bash
 # Create app directory
