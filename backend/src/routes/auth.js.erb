@@ -83,9 +83,7 @@ router.get('/me', passport.authenticate('jwt', {session: false}), (req, res) => 
     throw new ForbiddenError();
   }
 
-  const payload = req.currentUser;
-  delete payload.password;
-  res.status(200).send(payload);
+  res.status(200).send(req.currentUser);
 });
 
 router.put('/password-reset', wrapAsync(async (req, res) => {
@@ -109,8 +107,7 @@ router.post('/send-email-address-verification-email', passport.authenticate('jwt
 }));
 
 router.post('/send-password-reset-email', wrapAsync(async (req, res) => {
-  const link = new URL(req.headers.referer);
-  await AuthService.sendPasswordResetEmail(req.body.email, 'register', link.host,);
+  await AuthService.sendPasswordResetEmail(req.body.email);
   const payload = true;
   res.status(200).send(payload);
 }));
@@ -120,8 +117,8 @@ router.post('/send-password-reset-email', wrapAsync(async (req, res) => {
  *  /api/auth/signup:
  *    post:
  *      tags: [Auth]
- *      summary: Register new user into the system
- *      description: Register new user into the system
+ *      summary: Register an email address
+ *      description: Create a new account and send an email verification link.
  *      requestBody:
  *        description: Set valid user email and password
  *        content:
@@ -130,7 +127,12 @@ router.post('/send-password-reset-email', wrapAsync(async (req, res) => {
  *              $ref: "#/components/schemas/Auth"
  *      responses:
  *        200:
- *          description: New user successfully signed up
+ *          description: Verification email sent
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: boolean
+ *                example: true
  *        400:
  *          description: Invalid username/password supplied
  *        500:
@@ -139,13 +141,7 @@ router.post('/send-password-reset-email', wrapAsync(async (req, res) => {
  */
 
 router.post('/signup', wrapAsync(async (req, res) => {
-  const link = new URL(req.headers.referer);
-  const payload = await AuthService.signup(
-      req.body.email,
-      req.body.password,
-      req,
-      link.host,
-    )
+  const payload = await AuthService.signup(req.body.email, req.body.password);
   res.status(200).send(payload);
 }));
 
@@ -160,7 +156,7 @@ router.put('/profile', passport.authenticate('jwt', {session: false}), wrapAsync
 }));
 
 router.put('/verify-email', wrapAsync(async (req, res) => {
-  const payload = await AuthService.verifyEmail(req.body.token, req, req.headers.referer)
+  const payload = await AuthService.verifyEmail(req.body.token);
   res.status(200).send(payload);
 }));
 

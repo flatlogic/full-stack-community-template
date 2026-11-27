@@ -11,39 +11,37 @@ import {Field, Form, Formik} from 'formik';
 import FormField from '../components/FormField';
 import BaseButtons from '../components/BaseButtons';
 import BaseButton from '../components/BaseButton';
-import { passwordReset } from '../stores/authSlice';
-import {useAppDispatch} from '../stores/hooks';
+import axios from 'axios';
 
 export default function PasswordSetOrReset() {
     const [loading, setLoading] = React.useState(false);
     const [isInvitation, setIsInvitation] =  React.useState(false);
     const router = useRouter();
-    const {token, invitation} = router.query;
+    const [token, setToken] = React.useState('');
 
-    const notify = (type, msg) => toast(msg, {type});
-
-    const dispatch = useAppDispatch();
-    
     React.useEffect(() => {
-        if (invitation) {
-          setIsInvitation(true);
+        const params = new URLSearchParams(window.location.hash.slice(1));
+        if (params.has('token')) {
+            setToken(params.get('token') || '');
+            setIsInvitation(params.get('invitation') === '1');
+            window.history.replaceState(window.history.state, '', window.location.pathname);
         }
-      }, [invitation]);
+    }, []);
 
     const handleSubmit = async (value) => {
-        setLoading(true);
-        if (typeof token === 'string') {
-            await dispatch(
-                passwordReset({
-                    token,
-                    password: value.password,
-                    type: isInvitation && 'invitation',
-                }),
-            );
-            await router.push('/login');
+        if (!token || !value.password || value.password !== value.confirm) {
+            toast.error(!token ? 'Open a valid link from your email.' : 'Enter matching passwords.');
+            return;
         }
-
-        setLoading(false);
+        setLoading(true);
+        try {
+            await axios.put('/auth/password-reset', { token, password: value.password });
+            await router.push('/login');
+        } catch {
+            toast.error('Could not set your password. Check the password or request a new link.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (

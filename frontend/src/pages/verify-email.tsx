@@ -12,34 +12,26 @@ import axios from 'axios';
 export default function Verify() {
     const [loading, setLoading] = React.useState(false);
     const router = useRouter();
-    const { token } = router.query;
-    const notify = (type, msg) => toast(msg, { type });
-
+    const [token, setToken] = React.useState('');
     React.useEffect(() => {
-        if (!token) {
-            router.push('/login');
-            return;
+        const params = new URLSearchParams(window.location.hash.slice(1));
+        if (params.has('token')) {
+            setToken(params.get('token') || '');
+            window.history.replaceState(window.history.state, '', window.location.pathname);
         }
-        const handleSubmit = async () => {
+    }, []);
 
-            setLoading(true);
-            await axios.put('/auth/verify-email', {
-                token,
-            }).then(verified => {
-                if (verified) {
-                    setLoading(false);
-                    notify('success', 'Your email was verified');
-                }
-            }).catch(error => {
-                setLoading(false);
-                console.log('error: ', error);
-                notify('error', error.response);
-            }).finally(async () => {
-                await router.push('/login');
-            });
-        };
-        handleSubmit().then();
-    }, [token]);
+    const verifyEmail = async () => {
+        setLoading(true);
+        try {
+            await axios.put('/auth/verify-email', { token });
+            await router.push('/login');
+        } catch {
+            toast.error('This link is invalid or has expired. Request a new link from the password recovery page.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <>
@@ -48,7 +40,10 @@ export default function Verify() {
             </Head>
             <SectionFullScreen bg='violet'>
                 <CardBox className='w-11/12 md:w-7/12 lg:w-6/12 xl:w-4/12'>
-                    <p>{loading ? 'Loading...' : ''}</p>
+                    <p>Confirm that you registered this address to finish setting up your account.</p>
+                        <button type='button' disabled={!token || loading} onClick={verifyEmail}>
+                            {loading ? 'Verifying…' : 'Verify email'}
+                        </button>
                 </CardBox>
             </SectionFullScreen>
 

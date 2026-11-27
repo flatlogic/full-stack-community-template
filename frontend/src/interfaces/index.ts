@@ -84,13 +84,7 @@ export interface User {
   email: string;
   role: string;
   disabled: boolean;
-  password: string;
   emailVerified: boolean;
-  emailVerificationToken?: any;
-  emailVerificationTokenExpiresAt?: any;
-  passwordResetToken?: any;
-  passwordResetTokenExpiresAt?: any;
-  provider: string;
   importHash?: any;
   createdAt: Date;
   updatedAt: Date;

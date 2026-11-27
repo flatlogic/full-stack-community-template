@@ -4,6 +4,8 @@
 * Go to the [**Flatlogic**](https://flatlogic.com/projects/new).
 * In the list of available templates, select **Community template**.
 
+For account setup and upgrades, see [Account access](docs/account-access.md).
+
 ![Select the Community template](./community-template.png)
 
 The cheatsheet below describes the API for customizing this template: the variables, macros, and syntax available during generation.

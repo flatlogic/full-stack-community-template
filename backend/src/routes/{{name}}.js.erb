@@ -8,6 +8,13 @@ const wrapAsync = require('../helpers').wrapAsync;
 const router = express.Router();
 
 const { parse } = require('json2csv');
+<% if '((name))' == 'users' %>
+const { publicUserFields } = require('../auth/userFields');
+<% end %>
+<% if ['users', 'roles', 'permissions'].include?('((name))') %>
+const requireAccountAdmin = require('../auth/requireAccountAdmin');
+router.use(requireAccountAdmin);
+<% end %>
 
 /**
  *  @swagger
@@ -88,9 +95,7 @@ form_fields.each_with_index do |f,i|
 *          description: Some server error
 */
 router.post('/', wrapAsync(async (req, res) => {
-    const referer = req.headers.referer || `${req.protocol}://${req.hostname}${req.originalUrl}`;
-    const link = new URL(referer);
-    await ((Name))Service.create(req.body.data, req.currentUser, true, link.host);
+    await ((Name))Service.create(req.body.data, req.currentUser);
     const payload = true;
     res.status(200).send(payload);
 }));
@@ -131,9 +136,7 @@ router.post('/', wrapAsync(async (req, res) => {
  *
  */
 router.post('/bulk-import', wrapAsync(async (req, res) => {
-    const referer = req.headers.referer || `${req.protocol}://${req.hostname}${req.originalUrl}`;
-    const link = new URL(referer);
-    await ((Name))Service.bulkImport(req, res, true, link.host);
+    await ((Name))Service.bulkImport(req, res);
     const payload = true;
     res.status(200).send(payload);
 }));
@@ -187,7 +190,7 @@ router.post('/bulk-import', wrapAsync(async (req, res) => {
   *          description: Some server error
   */
 router.put('/:id', wrapAsync(async (req, res) => {
-  await ((Name))Service.update(req.body.data, req.body.id, req.currentUser);
+  await ((Name))Service.update(req.body.data, req.params.id, req.currentUser);
   const payload = true;
   res.status(200).send(payload);
 }));
@@ -320,15 +323,12 @@ form_fields.each_with_index do |f,i|
   form_fields = @fields.select{|f| f['@show_in_table'] and f['@type'] == 'date'}
   form_fields.each_with_index do |f,i|
   %>'<%=f['@name']%>',<% end %>];
-    const opts = { fields };
-    try {
-      const csv = parse(payload.rows, opts);
-      res.status(200).attachment(csv);
-      res.send(csv)
-
-    } catch (err) {
-      console.error(err);
-    }
+    <% if '((name))' == 'users' %>
+    const csv = parse(payload.rows, { fields: publicUserFields(fields) });
+    <% else %>
+    const csv = parse(payload.rows, { fields });
+    <% end %>
+    res.attachment('((name)).csv').send(csv);
   } else {
     res.status(200).send(payload);
   }
@@ -442,10 +442,7 @@ router.get('/:id', wrapAsync(async (req, res) => {
   const payload = await ((Name))DBApi.findBy(
     { id: req.params.id },
   );
-  
-  <% if '((name))' == 'users' %>
-    delete payload.password;
-  <% end %>
+
 
   res.status(200).send(payload);
 }));

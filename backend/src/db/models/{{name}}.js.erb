@@ -1,5 +1,8 @@
 const config = require('../../config');
 const providers = config.providers;
+<% if '((name))' == 'users' %>
+const { privateUserFields } = require('../../auth/userFields');
+<% end %>
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const moment = require('moment');
@@ -55,6 +58,9 @@ if j != last_index
       },
     },
     {
+<% if '((name))' == 'users' %>
+      defaultScope: { attributes: { exclude: privateUserFields } },
+<% end %>
       timestamps: true,
       paranoid: true,
       freezeTableName: true,
@@ -73,6 +79,12 @@ if j != last_index
   };
 
 <% if '((name))' == 'users' %>
+  users.prototype.toJSON = function() {
+    const record = { ...this.get({ plain: true }) };
+    for (const field of privateUserFields) delete record[field];
+    return record;
+  };
+
     users.beforeCreate((users, options) => {
         users = trimStringFields(users);
 

@@ -1,39 +1,28 @@
 const db = require('../db/models');
+const { publicUserFields } = require('../auth/userFields');
 const ValidationError = require('./notifications/errors/validation');
 
 const Sequelize = db.Sequelize;
 const Op = Sequelize.Op;
 
-/**
- * @param {string} permission
- * @param {object} currentUser
- */
-async function checkPermissions(permission, currentUser) {
-
-  if (!currentUser) {
-    throw new ValidationError('auth.unauthorized');
+<% if @schema['project']['@advanced_roles_permissions'] %>
+async function searchPermissions(currentUser) {
+  const user = await db.users.findByPk(currentUser.id);
+  const permissions = new Set();
+  if (user && db.users.associations.custom_permissions) {
+    const direct = await user.getCustom_permissions();
+    for (const item of direct) permissions.add(item.name);
   }
-
-  const userPermission = currentUser.custom_permissions.find(
-    (cp) => cp.name === permission,
-  );
-
-  if (userPermission) {
-    return true;
-  }
-
-  try {
-    if (!currentUser.app_role) {
-      throw new ValidationError('auth.forbidden');
+  if (user && db.users.associations.app_role) {
+    const role = await user.getApp_role();
+    if (role && db.roles.associations.permissions) {
+      const inherited = await role.getPermissions();
+      for (const item of inherited) permissions.add(item.name);
     }
-
-    const permissions = await currentUser.app_role.getPermissions();
-
-    return !!permissions.find((p) => p.name === permission);
-  } catch (e) {
-    throw e;
   }
+  return permissions;
 }
+<% end %>
 
 module.exports = class SearchService {
   static async search(searchQuery, currentUser) {
@@ -69,12 +58,18 @@ module.exports = class SearchService {
         <% end %>
       };
 
+      if (!currentUser) throw new ValidationError('auth.unauthorized');
+      <% if @schema['project']['@advanced_roles_permissions'] %>
+      const permissions = await searchPermissions(currentUser);
+      <% end %>
+
       let allFoundRecords = [];
 
       for (const tableName in tableColumns) {
         if (tableColumns.hasOwnProperty(tableName)) {
-          const attributesToSearch = tableColumns[tableName];
-          const attributesIntToSearch = columnsInt[tableName] || [];
+          const attributesToSearch = tableName === 'users' ? publicUserFields(tableColumns.users) : tableColumns[tableName];
+          const intColumns = columnsInt[tableName] || [];
+          const attributesIntToSearch = tableName === 'users' ? publicUserFields(intColumns) : intColumns;
           const whereCondition = {
             [Op.or]: [
               ...attributesToSearch.map(attribute => ({
@@ -91,14 +86,13 @@ module.exports = class SearchService {
             ],
           };
 
-          const hasPermission = await checkPermissions(`READ_${tableName.toUpperCase()}`, currentUser);
-          if (!hasPermission) {
-            continue;
-          }
+          <% if @schema['project']['@advanced_roles_permissions'] %>
+          if (!permissions.has(`READ_${tableName.toUpperCase()}`)) continue;
+          <% end %>
 
           const foundRecords = await db[tableName].findAll({
             where: whereCondition,
-            attributes: [...tableColumns[tableName], 'id', ...attributesIntToSearch],
+            attributes: [...attributesToSearch, 'id', ...attributesIntToSearch],
           });
       
           const modifiedRecords = foundRecords.map((record) => {

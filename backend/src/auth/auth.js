@@ -4,6 +4,7 @@ const passport = require('passport');
 const JWTstrategy = require('passport-jwt').Strategy;
 const ExtractJWT = require('passport-jwt').ExtractJwt;
 const UsersDBApi = require('../db/api/users');
+const { normalizeEmail } = require('./email');
 
 
 passport.use(new JWTstrategy({
@@ -12,10 +13,10 @@ passport.use(new JWTstrategy({
   jwtFromRequest: ExtractJWT.fromAuthHeaderAsBearerToken()
 }, async (req, token, done) => {
   try {
-    const user = await UsersDBApi.findBy( {email: token.user.email});
+    const user = await UsersDBApi.findBy({ id: token.user.id, email: normalizeEmail(token.user.email) });
 
-    if (user && user.disabled) {
-      return done (new Error(`User '${user.email}' is disabled`));
+    if (!user || user.disabled || !user.emailVerified) {
+      return done(null, false);
     }
 
     req.currentUser = user;

@@ -65,7 +65,7 @@ form_fields.each_with_index do |f,i|
 
     const get((Name))CSV = async () => {
         const response = await axios({url: '/((name))?filetype=csv', method: 'GET',responseType: 'blob'});
-        const type = response.headers['content-type']
+        const type = String(response.headers['content-type'] || 'text/csv')
         const blob = new Blob([response.data], { type: type })
         const link = document.createElement('a')
         link.href = window.URL.createObjectURL(blob)

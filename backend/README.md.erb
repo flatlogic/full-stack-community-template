@@ -54,3 +54,18 @@ http://host_name/api-docs
  
  ##### Start build:
  - `yarn start`
+
+#### Account email
+
+Set `FRONTEND_ORIGIN` to the HTTPS origin that serves the generated frontend. Platform deployments can also use `FULL_DOMAIN`, `HOST_FQDN`, or an absolute `NEXT_PUBLIC_BACK_API` on the same origin. Local development defaults to `http://localhost:3000`.
+
+| Environment variable | Purpose |
+| --- | --- |
+| `EMAIL_HOST`, `EMAIL_PORT` | SMTP relay, defaulting to Amazon SES on port 587. Port 465 uses implicit TLS. |
+| `EMAIL_USER`, `EMAIL_PASS` | SMTP credentials. Leave both empty for a local capture server or a trusted relay that accepts unauthenticated delivery. |
+| `EMAIL_FROM` | Sender address approved by your mail provider. Defaults to `app@flatlogic.app`. |
+| `EMAIL_REQUIRE_TLS` | STARTTLS is required by default. Use `false` for a local test SMTP server without TLS. |
+
+New registrations must confirm the emailed verification link before signing in. Admin-created and CSV-imported users receive an invitation to choose a password. Links expire in one hour and can be used once. Password recovery issues a fresh link if an invitation or verification message expired or failed to arrive.
+
+Run `yarn db:migrate` before starting the updated backend. The email uniqueness migration trims and lowercases stored addresses. If several records share the same normalized address, it stops so the operator can reconcile them before retrying. Previously issued links must be requested again.

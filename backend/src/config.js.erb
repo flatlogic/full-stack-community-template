@@ -14,6 +14,7 @@ const config = {
   admin_pass: "<%= @app_admin_password %>",
   user_pass: "<%= @app_user_password %>",
   admin_email: "admin@flatlogic.com",
+  seededAdminId: '193bf4b5-9f07-4bd5-9a43-e7e41f3e96af',
   providers: {
     LOCAL: 'local',
     GOOGLE: 'google',
@@ -30,16 +31,18 @@ const config = {
 
   uploadDir: os.tmpdir(),
   email: {
-    from: '<%= @schema['project']['@title'] %> <app@flatlogic.app>',
-    host: 'email-smtp.us-east-1.amazonaws.com',
-    port: 587,
-    auth: {
-      user: process.env.EMAIL_USER || '',
+    from: process.env.EMAIL_FROM || 'app@flatlogic.app',
+    host: process.env.EMAIL_HOST || 'email-smtp.us-east-1.amazonaws.com',
+    port: Number(process.env.EMAIL_PORT || 587),
+    secure: Number(process.env.EMAIL_PORT || 587) === 465,
+    requireTLS: process.env.EMAIL_REQUIRE_TLS !== 'false',
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    auth: process.env.EMAIL_USER ? {
+      user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
-    },
-    tls: {
-      rejectUnauthorized: false
-    }
+    } : undefined,
   },
   roles: {
     admin: 'Administrator',

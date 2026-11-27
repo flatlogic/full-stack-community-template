@@ -27,9 +27,8 @@ export default function Register() {
             await router.push('/login')
             setLoading(false)
             notify('success', 'Please check your email for verification link')
-        } catch (error) {
+        } catch {
             setLoading(false)
-            console.log('error: ', error)
             notify('error', 'Something was wrong. Try again')
         }
     };

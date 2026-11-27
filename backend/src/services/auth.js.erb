@@ -4,70 +4,45 @@ const ForbiddenError = require('./notifications/errors/forbidden');
 const bcrypt = require('bcrypt');
 const config = require('../config');
 const helpers = require('../helpers');
+const db = require('../db/models');
+const { normalizeEmail, sendAccountEmail } = require('../auth/email');
+
+async function hashPassword(password) {
+  if (typeof password !== 'string' || !password.length || Buffer.byteLength(password) > 72) {
+    throw new ValidationError('auth.weakPassword');
+  }
+  return bcrypt.hash(password, config.bcrypt.saltRounds);
+}
 
 class Auth {
-  static async signup(email, password, options = {}, host) {
-    const user = await UsersDBApi.findBy({email});
-
-    const hashedPassword = await bcrypt.hash(
-      password,
-      config.bcrypt.saltRounds,
-    );
-
-    if (user) {
-      if (user.authenticationUid) {
-        throw new ValidationError(
-          'auth.emailAlreadyInUse',
-        );
-      }
-
-      if (user.disabled) {
-        throw new ValidationError(
-          'auth.userDisabled',
-        );
-      }
-
-      await UsersDBApi.updatePassword(
-        user.id,
-        hashedPassword,
-        options,
-      );
-
-      // Send Email Address Verification Email
-
-      const data = {
-        user: {
-          id: user.id,
-          email: user.email
-        }
-      };
-
-      return helpers.jwtSign(data);
+  static async signup(address, password) {
+    const email = normalizeEmail(address);
+    if (await UsersDBApi.findBy({ email })) {
+      throw new ValidationError('auth.emailAlreadyInUse');
     }
 
-    const newUser = await UsersDBApi.createFromAuth(
-      {
-        firstName: email.split('@')[0],
-        password: hashedPassword,
-        email: email,
-      },
-      options,
-    );
-
-    // Send Email Address Verification Email
-
-    const data = {
-      user: {
-        id: newUser.id,
-        email: newUser.email
+    const hashedPassword = await hashPassword(password);
+    try {
+      await db.sequelize.transaction(async (transaction) => {
+        await UsersDBApi.createFromAuth({
+          email,
+          firstName: email.split('@')[0],
+          password: hashedPassword,
+        }, { transaction });
+        await this.sendEmailAddressVerificationEmail(email, { transaction });
+      });
+    } catch (error) {
+      if (error instanceof db.Sequelize.UniqueConstraintError) {
+        throw new ValidationError('auth.emailAlreadyInUse');
       }
-    };
-
-    return helpers.jwtSign(data);
+      throw error;
+    }
+    return true;
   }
 
-  static async signin(email, password, options = {}) {
-    const user = await UsersDBApi.findBy({email});
+  static async signin(address, password) {
+    const email = normalizeEmail(address);
+    const user = await UsersDBApi.findForAuthentication({ email });
 
     if (!user) {
       throw new ValidationError(
@@ -81,13 +56,11 @@ class Auth {
       );
     }
 
-    if (!user.password) {
+    if (!user.password || typeof password !== 'string') {
       throw new ValidationError(
         'auth.wrongPassword',
       );
     }
-
-    // Set emailVerified param
 
     if (!user.emailVerified) {
       throw new ValidationError(
@@ -116,48 +89,30 @@ class Auth {
     return helpers.jwtSign(data);
   }
 
-  // sendEmailAddressVerificationEmail
-
-  static async sendPasswordResetEmail(email, type = 'register', host) {
-    let link;
-
-    try {
-      const token = await UsersDBApi.generatePasswordResetToken(
-        email,
-      );
-      link = `${host}/password-reset?token=${token}`;
-    } catch (error) {
-      console.error(error);
-      throw new ValidationError(
-        'auth.passwordReset.error',
-      );
+  static async sendEmailAddressVerificationEmail(address, options = {}) {
+    const email = normalizeEmail(address);
+    const token = await UsersDBApi.issueAccountToken('verification', email, options);
+    if (token) {
+      await sendAccountEmail(email, 'verification', token);
     }
-
-    let passwordResetEmail;
-    if (type === 'register') {
-
-    }
-
-    // password Reset Email
-    return true;
   }
 
-  static async verifyEmail(token, options = {}) {
-    const user = await UsersDBApi.findByEmailVerificationToken(
-      token,
-      options,
-    );
+  static async sendPasswordResetEmail(address, type = 'reset') {
+    const email = normalizeEmail(address);
+    await db.sequelize.transaction(async (transaction) => {
+      const token = await UsersDBApi.issueAccountToken('password', email, { transaction });
+      if (token) {
+        await sendAccountEmail(email, type, token);
+      }
+    });
+  }
 
-    if (!user) {
-      throw new ValidationError(
-        'auth.emailAddressVerificationEmail.invalidToken',
-      );
+  static async verifyEmail(token) {
+    const verified = await UsersDBApi.consumeAccountToken('verification', token, { emailVerified: true });
+    if (!verified) {
+      throw new ValidationError('auth.emailAddressVerificationEmail.invalidToken');
     }
-
-    return UsersDBApi.markEmailVerified(
-      user.id,
-      options,
-    );
+    return true;
   }
 
   static async passwordUpdate(currentPassword, newPassword, options) {
@@ -166,9 +121,10 @@ class Auth {
       throw new ForbiddenError();
     }
 
-    const currentPasswordMatch = await bcrypt.compare(
+    const credentials = await UsersDBApi.findForAuthentication({ id: currentUser.id });
+    const currentPasswordMatch = credentials && credentials.password && typeof currentPassword === 'string' && await bcrypt.compare(
       currentPassword,
-      currentUser.password,
+      credentials.password,
     );
 
     if (!currentPasswordMatch) {
@@ -177,9 +133,10 @@ class Auth {
       )
     }
 
+    const hashedPassword = await hashPassword(newPassword);
     const newPasswordMatch = await bcrypt.compare(
       newPassword,
-      currentUser.password,
+      credentials.password,
     );
 
     if (newPasswordMatch) {
@@ -188,70 +145,40 @@ class Auth {
       )
     }
 
-    const hashedPassword = await bcrypt.hash(
-      newPassword,
-      config.bcrypt.saltRounds,
-    );
-
-    return UsersDBApi.updatePassword(
-      currentUser.id,
-      hashedPassword,
-      options,
-    );
+    const updated = await UsersDBApi.updatePassword(currentUser.id, credentials.password, hashedPassword);
+    if (!updated) {
+      throw new ValidationError('auth.wrongPassword');
+    }
+    return true;
   }
 
-  static async passwordReset(
-    token,
-    password,
-    options = {},
-  ) {
-    const user = await UsersDBApi.findByPasswordResetToken(
-      token,
-      options,
-    );
-
+  static async passwordReset(token, password) {
+    const user = await UsersDBApi.findPasswordResetUser(token);
     if (!user) {
-      throw new ValidationError(
-        'auth.passwordReset.invalidToken',
-      );
+      throw new ValidationError('auth.passwordReset.invalidToken');
     }
-
-    const hashedPassword = await bcrypt.hash(
-      password,
-      config.bcrypt.saltRounds,
-    );
-
-    return UsersDBApi.updatePassword(
-      user.id,
-      hashedPassword,
-      options,
-    );
+    const hashedPassword = await hashPassword(password);
+    const updated = await UsersDBApi.consumeAccountToken('password', token, {
+      password: hashedPassword,
+      authenticationUid: user.id,
+      emailVerified: true,
+      emailVerificationToken: null,
+      emailVerificationTokenExpiresAt: null,
+    });
+    if (!updated) {
+      throw new ValidationError('auth.passwordReset.invalidToken');
+    }
+    return true;
   }
 
   static async updateProfile(data, currentUser) {
-    let transaction = await db.sequelize.transaction();
-
-    try {
-      await UsersDBApi.findBy(
-        {id: currentUser.id},
-        {transaction},
-      );
-
-      await UsersDBApi.update(
-        currentUser.id,
-        data,
-        {
-          currentUser,
-          transaction
-        },
-      );
-
-
-      await transaction.commit();
-    } catch (error) {
-      await transaction.rollback();
-      throw error;
-    }
+    const { firstName, lastName, phoneNumber, avatar } = data;
+    await db.sequelize.transaction(async (transaction) => {
+      await UsersDBApi.update(currentUser.id, { firstName, lastName, phoneNumber, avatar }, {
+        currentUser,
+        transaction,
+      });
+    });
   }
 }
 

@@ -9,45 +9,29 @@ const stream = require('stream');
 
 <% if '((name))' == 'users' %>
 const AuthService = require('./auth');
+const { normalizeEmail } = require('../auth/email');
 
 module.exports = class UsersService {
-  static async create(data, currentUser, sendInvitationEmails = true, host) {
-    let transaction = await db.sequelize.transaction();
-    let email = data.email;
-    let emailsToInvite = [];
+  static async create(data, currentUser, sendInvitationEmails = true) {
+    const email = normalizeEmail(data.email);
     try {
-      if (email) {
-        let user = await UsersDBApi.findBy({email}, {transaction});
-        if (user) {
-          throw new ValidationError(
-            'iam.errors.userAlreadyExists',
-          );
-        } else {
-          await UsersDBApi.create(
-            {data},
-            {
-              currentUser,
-              transaction,
-            },
-          );
-          emailsToInvite.push(email);
-        }
-      } else {
-        throw new ValidationError('iam.errors.emailRequired')
-      }
-      await transaction.commit();
+      await UsersDBApi.create({ data: { ...data, email } }, { currentUser });
     } catch (error) {
-      await transaction.rollback();
+      if (error instanceof db.Sequelize.UniqueConstraintError) {
+        throw new ValidationError('iam.errors.userAlreadyExists');
+      }
       throw error;
     }
-    if (emailsToInvite && emailsToInvite.length) {
-      if (!sendInvitationEmails) return;
-
-      AuthService.sendPasswordResetEmail(email, 'invitation', host);
+    if (sendInvitationEmails) {
+      try {
+        await AuthService.sendPasswordResetEmail(email, 'invitation');
+      } catch (error) {
+        throw new Error('User created, but invitation delivery failed. Request another link through password recovery.', { cause: error });
+      }
     }
   }
 
-  static async bulkImport(req, res, sendInvitationEmails = true, host) {
+  static async bulkImport(req, res, sendInvitationEmails = true) {
     const transaction = await db.sequelize.transaction();
     let emailsToInvite = [];
 
@@ -62,10 +46,7 @@ module.exports = class UsersService {
         bufferStream
           .pipe(csv())
           .on('data', (data) => results.push(data))
-          .on('end', () => {
-              console.log('results csv', results);
-              resolve();
-          })
+          .on('end', resolve)
           .on('error', (error) => reject(error));
       });
 
@@ -82,7 +63,7 @@ module.exports = class UsersService {
           currentUser: req.currentUser
       });
 
-      emailsToInvite = results.map((result) => result.email);
+      emailsToInvite = results.map((result) => normalizeEmail(result.email));
 
       await transaction.commit();
     } catch (error) {
@@ -90,11 +71,19 @@ module.exports = class UsersService {
       throw error;
     }
 
-    if (emailsToInvite && emailsToInvite.length && !sendInvitationEmails) {
-
-      emailsToInvite.forEach((email) => {
-        AuthService.sendPasswordResetEmail(email, 'invitation', host);
-      });
+    if (sendInvitationEmails) {
+      let failures = 0;
+      for (const email of emailsToInvite) {
+        try {
+          await AuthService.sendPasswordResetEmail(email, 'invitation');
+        } catch (error) {
+          console.error('Imported user invitation failed', error.message);
+          failures++;
+        }
+      }
+      if (failures) {
+        throw new Error(`Users imported, but ${failures} invitation(s) could not be delivered. Request new links through password recovery.`);
+      }
     }
   }
 

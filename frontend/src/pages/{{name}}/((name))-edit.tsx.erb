@@ -19,7 +19,6 @@ import BaseButton from '../../components/BaseButton'
 import FormCheckRadio from '../../components/FormCheckRadio'
 import FormCheckRadioGroup from '../../components/FormCheckRadioGroup'
 import { SelectField } from "../../components/SelectField";
-import { SelectFieldMany } from "../../components/SelectFieldMany";
 import { SwitchField } from '../../components/SwitchField'
 import {RichTextField} from "../../components/RichTextField";
 
@@ -91,21 +90,24 @@ const Edit((Name))Page = () => {
   }, [id])
 
   useEffect(() => {
-    if (typeof ((name)) === 'object') {
-      setInitialValues(((name)))
-    }
-  }, [((name))])
-
-  useEffect(() => {
-      if (typeof ((name)) === 'object') {
+      if (((name))) {
           const newInitialVal = {...initVals};
           Object.keys(initVals).forEach(el => newInitialVal[el] = (((name)))[el])
+          <% if '((name))' == 'users' %>
+          newInitialVal.password = '';
+          <% end %>
           setInitialValues(newInitialVal);
       }
   }, [((name))])
 
+  const [saveError, setSaveError] = useState('');
   const handleSubmit = async (data) => {
-    await dispatch(update({ id: id, data }))
+    setSaveError('');
+    const result = await dispatch(update({ id: id, data }))
+    if (update.rejected.match(result)) {
+      setSaveError(typeof result.payload === 'string' ? result.payload : 'Could not save changes.');
+      return;
+    }
     await router.push('/((name))/((name))-list')
   }
 
@@ -119,6 +121,7 @@ const Edit((Name))Page = () => {
         {''}
         </SectionTitleLineWithButton>
         <CardBox>
+          {saveError && <p role='alert'>{saveError}</p>}
           <Formik
             enableReinitialize
             initialValues={initialValues}
@@ -272,6 +275,8 @@ const Edit((Name))Page = () => {
         label="Password"
     >
         <Field
+            type="password"
+            autoComplete="new-password"
             name="password"
             placeholder="password"
         />

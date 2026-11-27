@@ -28,9 +28,8 @@ export default function Forgot() {
       setTimeout(async () => {
         await router.push('/login')
       }, 3000)
-    } catch (error) {
+    } catch {
       setLoading(false)
-      console.log('error: ', error)
       notify('error', 'Something was wrong. Try again')
     }
   };

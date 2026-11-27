@@ -7,6 +7,17 @@ const Utils = require('../utils');
 <% if '((name))' == 'users' %>
 const bcrypt = require('bcrypt');
 const config = require('../../config');
+const { normalizeEmail } = require('../../auth/email');
+const { privateUserFields, publicUserFields } = require('../../auth/userFields');
+
+function editableUserData(input) {
+    const data = Object.create(null);
+    for (const field of publicUserFields(Object.keys(input))) {
+        if (field !== 'emailVerified') data[field] = input[field];
+    }
+    if (data.email !== undefined) data.email = normalizeEmail(data.email);
+    return data;
+}
 <% end %>
 
 const Sequelize = db.Sequelize;
@@ -17,27 +28,17 @@ module.exports = class ((Name))DBApi {
     static async create(data, options) {
         const currentUser = (options && options.currentUser) || { id: null };
         const transaction = (options && options.transaction) || undefined;
-        const ((name)) = await db.((name)).create(
-        {
-            id: data.data.id || undefined,
-        <%
-            scalar_fields.each_with_index do |f,i|
-        %>
-            <%=f['@name']%>: data.data.<%=f['@name']%>
-            ||
-            <% if f['@name'] == 'emailVerified' %>true
-            <% elsif f['@type'] == 'boolean' %>false
-            <% elsif f['@name'] == 'role' and '((name))' == 'users' %>'user'
-            <% else %>null<% end %>,
-        <% end %>
-        importHash: data.data.importHash || null,
-        createdById: currentUser.id,
-        updatedById: currentUser.id,
-    },
-        { transaction },
-    );
-
-    return ((name));
+        const input = editableUserData(data.data);
+        return db.users.create({
+            id: input.id || undefined,
+            <% scalar_fields.each do |f| %>
+            <%= f['@name'] %>: input.<%= f['@name'] %> ||
+                <% if f['@type'] == 'boolean' %>false<% elsif f['@name'] == 'role' %>'user'<% else %>null<% end %>,
+            <% end %>
+            importHash: input.importHash || null,
+            createdById: currentUser.id,
+            updatedById: currentUser.id,
+        }, { transaction });
     }
     <% end %>
 
@@ -74,6 +75,9 @@ module.exports = class ((Name))DBApi {
         const currentUser = (options && options.currentUser) || { id: null };
         const transaction = (options && options.transaction) || undefined;
 
+        <% if '((name))' == 'users' %>
+        data = data.map(editableUserData);
+        <% end %>
         // Prepare data - wrapping individual data transformations in a map() method
         const ((name))Data = data.map((item, index) => ({
                 id: item.id || undefined,
@@ -101,36 +105,26 @@ module.exports = class ((Name))DBApi {
         const currentUser = (options && options.currentUser) || {id: null};
         const transaction = (options && options.transaction) || undefined;
 
-        const ((name)) = await db.((name)).findByPk(id, {}, {transaction});
-
-
-        <% if '((name))' == 'users' %>
-
-        if (!data?.app_role) {
-            data.app_role = users?.app_role?.id;
-        }
-        if (!data?.custom_permissions) {
-            data.custom_permissions = users?.custom_permissions?.map(item => item.id);
-        }
-
-        if (data.password) {
-            data.password = bcrypt.hashSync(
-                data.password,
-                config.bcrypt.saltRounds,
-            );
-        } else {
-            data.password = users.password;
-        }
-        <% end %>
-
+        const ((name)) = await db.((name)).findByPk(id, {transaction});
         const updatePayload = {};
+        <% if '((name))' == 'users' %>
+        const newPassword = data.password;
+        data = editableUserData(data);
+        <% end %>
         <% scalar_fields.each do |f| %>
         if (data.<%= f['@name'] %> !== undefined) updatePayload.<%= f['@name'] %> = data.<%= f['@name'] %>;
-        <% if f['@name'] == 'emailVerified' %>
-        else updatePayload.emailVerified = true;
-        <% elsif f['@name'] == 'role' and '((name))' == 'users' %>
-        else updatePayload.role = 'user';
         <% end %>
+        <% if '((name))' == 'users' %>
+        if (newPassword) {
+            updatePayload.password = await bcrypt.hash(newPassword, config.bcrypt.saltRounds);
+        }
+        if (newPassword || (data.email !== undefined && data.email !== users.email) ||
+            (data.disabled !== undefined && data.disabled !== users.disabled)) {
+            updatePayload.passwordResetToken = null;
+            updatePayload.passwordResetTokenExpiresAt = null;
+            updatePayload.emailVerificationToken = null;
+            updatePayload.emailVerificationTokenExpiresAt = null;
+        }
         <% end %>
         updatePayload.updatedById = currentUser.id;
 
@@ -190,10 +184,7 @@ module.exports = class ((Name))DBApi {
     static async findBy(where, options) {
         const transaction = (options && options.transaction) || undefined;
 
-        const ((name)) = await db.((name)).findOne(
-            { where },
-            { transaction },
-        );
+        const ((name)) = await db.((name)).findOne({ where, transaction });
 
         if (!((name))) {
             return ((name));
@@ -204,7 +195,25 @@ module.exports = class ((Name))DBApi {
         return output;
     }
 
+    <% if '((name))' == 'users' %>
+    static async findForAuthentication(where, options = {}) {
+        return db.users.unscoped().findOne({
+            where,
+            attributes: ['id', 'email', 'disabled', 'emailVerified', 'password'],
+            transaction: options.transaction,
+        });
+    }
+    <% end %>
+
     static async findAll(filter, options) {
+        <% if '((name))' == 'users' %>
+        filter = { ...filter };
+        for (const field of privateUserFields) {
+            delete filter[field];
+            delete filter[field + 'Range'];
+        }
+        if (privateUserFields.includes(filter.field)) delete filter.field;
+        <% end %>
         const limit = filter.limit || 0;
         let offset = 0;
         let where = {};
@@ -349,6 +358,11 @@ module.exports = class ((Name))DBApi {
     }
 
     static async findAllAutocomplete(query, limit, offset) {
+        <% if '((name))' == 'users' %>
+        const labelField = publicUserFields(['<%= @entity['@show_field'].present? ? @entity['@show_field'] : 'id' %>'])[0] || 'id';
+        <% else %>
+        const labelField = '<%= @entity['@show_field'].present? ? @entity['@show_field'] : 'id' %>';
+        <% end %>
         let where = {};
 
         if (query) {
@@ -357,7 +371,7 @@ module.exports = class ((Name))DBApi {
                     { ['id']: Utils.uuid(query) },
                     Utils.ilike(
                         '((name))',
-                        '<%= @entity['@show_field'].present? ? @entity['@show_field'] : 'id' %>',
+                        labelField,
                         query,
                     ),
                 ],
@@ -365,162 +379,103 @@ module.exports = class ((Name))DBApi {
         }
 
         const records = await db.((name)).findAll({
-            attributes: [ 'id', '<%= @entity['@show_field'].present? ? @entity['@show_field'] : 'id' %>' ],
+            attributes: [ 'id', labelField ],
             where,
             limit: limit ? Number(limit) : undefined,
             offset: offset ? Number(offset) : undefined,
-            orderBy: [['<%= @entity['@show_field'].present? ? @entity['@show_field'] : 'id' %>', 'ASC']],
+            orderBy: [[labelField, 'ASC']],
         });
 
         return records.map((record) => ({
             id: record.id,
-            label: record.<%= @entity['@show_field'].present? ? @entity['@show_field'] : 'id' %>,
+            label: record[labelField],
         }));
     }
 
     <% if '((name))' == 'users' %>
     static async createFromAuth(data, options) {
-        const transaction = (options && options.transaction) || undefined;
-        const users = await db.users.create(
-            {
-                email: data.email,
-                firstName: data.firstName,
-                authenticationUid: data.authenticationUid,
-                password: data.password,
-            },
-            { transaction },
-        );
-
-        const app_role = await db.roles.findOne({
-            where: { name: config.roles?.user || "User" },
-        });
-        if (app_role?.id) {
-            await users.setApp_role(app_role?.id || null, {
-                transaction,
+        const { transaction } = options;
+        const id = crypto.randomUUID();
+        const values = {
+            id,
+            authenticationUid: id,
+            email: data.email,
+            firstName: data.firstName,
+            emailVerified: false,
+            password: data.password,
+        };
+        const roleAssociation = db.users.associations.app_role;
+        if (roleAssociation) {
+            const role = await roleAssociation.target.findOne({
+                where: { name: config.roles.user }, transaction,
             });
+            if (role) {
+                values[roleAssociation.foreignKey] = role.id;
+            }
         }
-
-        await users.update(
-            {
-                authenticationUid: users.id,
-            },
-            { transaction },
-        );
-
-        delete users.password;
-        return users;
+        await db.users.create(values, { transaction, logging: false });
+        return { id, email: data.email };
     }
 
-    static async updatePassword(id, password, options) {
-        const currentUser = (options && options.currentUser) || { id: null };
-
-        const transaction = (options && options.transaction) || undefined;
-
-        const users = await db.users.findByPk(id, {
-            transaction,
-        });
-
-        await users.update(
-            {
-                password,
-                authenticationUid: id,
-                updatedById: currentUser.id,
-            },
-            { transaction },
-        );
-
-        return users;
+    static async updatePassword(id, previousHash, password) {
+        const [count] = await db.users.update({
+            password,
+            authenticationUid: id,
+            passwordResetToken: null,
+            passwordResetTokenExpiresAt: null,
+            emailVerificationToken: null,
+            emailVerificationTokenExpiresAt: null,
+            updatedById: id,
+        }, { where: { id, disabled: false, password: previousHash }, logging: false });
+        return count === 1;
     }
 
-    static async generateEmailVerificationToken(email, options) {
-        return this._generateToken(['emailVerificationToken', 'emailVerificationTokenExpiresAt'], email, options);
-    }
-
-    static async generatePasswordResetToken(email, options) {
-        return this._generateToken(['passwordResetToken', 'passwordResetTokenExpiresAt'], email, options);
-    }
-
-    static async findByPasswordResetToken(token, options) {
-        const transaction = (options && options.transaction) || undefined;
-
-        return db.users.findOne(
-            {
-                where: {
-                    passwordResetToken: token,
-                    passwordResetTokenExpiresAt: {
-                        [db.Sequelize.Op.gt]: Date.now(),
-                    },
-                },
-            },
-            { transaction },
-        );
-    }
-
-    static async findByEmailVerificationToken(token, options) {
-        const transaction = (options && options.transaction) || undefined;
-        return db.users.findOne(
-            {
-                where: {
-                    emailVerificationToken: token,
-                    emailVerificationTokenExpiresAt: {
-                        [db.Sequelize.Op.gt]: Date.now(),
-                    },
-                },
-            },
-            { transaction },
-        );
-    }
-
-    static async markEmailVerified(id, options) {
-        const currentUser = (options && options.currentUser) || { id: null };
-        const transaction = (options && options.transaction) || undefined;
-
-        const users = await db.users.findByPk(id, {
-            transaction,
-        });
-
-        await users.update(
-            {
-                emailVerified: true,
-                updatedById: currentUser.id,
-            },
-            { transaction },
-        );
-
-        return true;
-    }
-
-    static async _generateToken(keyNames, email, options) {
-        const currentUser = (options && options.currentUser) || {id: null};
-        const transaction = (options && options.transaction) || undefined;
-        const users = await db.users.findOne(
-            {
-                where: { email: email.toLowerCase() },
-            },
-            {
-                transaction,
-            },
-        );
-
-        const token = crypto
-            .randomBytes(20)
-            .toString('hex');
-        const tokenExpiresAt = Date.now() + 360000;
-
-        if(users){
-            await users.update(
-                {
-                    [keyNames[0]]: token,
-                    [keyNames[1]]: tokenExpiresAt,
-                    updatedById: currentUser.id,
-                },
-                {transaction},
-            );
+    static async issueAccountToken(purpose, email, options = {}) {
+        const field = purpose === 'verification' ? 'emailVerificationToken' : 'passwordResetToken';
+        const token = crypto.randomBytes(32).toString('hex');
+        const digest = crypto.createHash('sha256').update(token).digest('hex');
+        const where = { email, disabled: false };
+        if (purpose === 'verification') {
+            where.emailVerified = false;
         }
+        const [count] = await db.users.update({
+            [field]: digest,
+            [field + 'ExpiresAt']: new Date(Date.now() + 60 * 60 * 1000),
+        }, { where, transaction: options.transaction, logging: false });
+        return count === 1 ? token : null;
+    }
 
+    static accountTokenFilter(field, token) {
+        if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) {
+            return null;
+        }
+        return {
+            disabled: false,
+            [field]: crypto.createHash('sha256').update(token).digest('hex'),
+            [field + 'ExpiresAt']: { [Op.gt]: new Date() },
+        };
+    }
 
-        return token;
+    static async findPasswordResetUser(token) {
+        const where = this.accountTokenFilter('passwordResetToken', token);
+        if (!where) {
+            return null;
+        }
+        return db.users.findOne({ where, attributes: ['id'], logging: false });
+    }
+
+    static async consumeAccountToken(purpose, token, changes) {
+        const field = purpose === 'verification' ? 'emailVerificationToken' : 'passwordResetToken';
+        const where = this.accountTokenFilter(field, token);
+        if (!where) {
+            return false;
+        }
+        const [count] = await db.users.update({
+            ...changes,
+            [field]: null,
+            [field + 'ExpiresAt']: null,
+        }, { where, logging: false });
+        return count === 1;
     }
     <% end %>
 };
-
